@@ -81,7 +81,7 @@ $(FLOPPY_OUT): $(EXE) $(FLOPPY_SRC) $(VGM_SRCS)
 	cp "$(FLOPPY_SRC)" $@
 	mcopy -i $@ -o $(EXE) ::ADLIB.EXE
 	@for f in $(VGM_SRCS); do \
-	  base=$$(basename "$$f" .vgm | tr 'a-z' 'A-Z'); \
+	  base=$$(basename "$$f" .vgm | tr 'a-z' 'A-Z' | cut -c1-8); \
 	  echo "  -> $$base.VGM"; \
 	  mcopy -i $@ -o "$$f" "::$$base.VGM"; \
 	done

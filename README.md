@@ -127,24 +127,54 @@ RNG-driven extra kicks. Tempo is fixed at 120 BPM, 64 substeps/bar.
 
 ## VGM mode
 
-Very early — **stub only**. Drop a `.vgm` file under `assets/`, rebuild
-the floppy, and launch it with `ADLIB FOO.VGM`. Right now the VGM
-player:
+Drop a `.vgm` file under `assets/`, rebuild the floppy, and launch it
+as `ADLIB FOO.VGM` from the DOS prompt. Filenames are shortened to
+8.3 upper-case on the way onto the floppy, so `assets/foo-bar.vgm`
+lands as `FOO-BAR.VGM` (the basename is truncated if longer than 8).
 
-- reads the header and prints the declared chip clocks (YM3812 /
-  YM3526 / YMF262),
-- warns if the dump targets OPL3 (YMF262), since the AdLib is OPL2
-  and the entire port-1 register bank — extended channels 9-17, 4-op,
-  stereo — has no hardware equivalent,
-- does **not** emit audio yet.
+What works today (**stage #2a**):
 
-The real playback engine is stage #2 on the roadmap and will come
-with a host-side OPL3→OPL2 transcoder so that "channel soup" OPL3
-files can be folded into the nine voices an AdLib actually has.
+- streams **OPL2-native** VGMs (YM3812 clock set; no YMF262) off the
+  floppy and clocks the register writes against `timer_ms`,
+- handles the header, variable-length waits (`0x61`/`0x62`/`0x63` and
+  the `0x70..0x7F` short form), the loop offset, and end-of-stream,
+- shows a progress bar, elapsed/total time, and the declared chip
+  clocks while it plays.
 
-Adding a new player is deliberately small now: implement the
-`player_t` vtable in `src/player.h` and hand it to `main.c`'s
-dispatcher.
+What doesn't (yet):
+
+- **OPL3 dumps are refused.** AdLib hardware is OPL2-only, and the
+  port-1 register bank (channels 9-17, 4-op, stereo) has no
+  equivalent on the chip — folding 18 voices down to 9 is a musical
+  decision that belongs in the host-side transcoder, not the DOS
+  player. See stage #2b below.
+
+### Generating a test VGM
+
+`scripts/make_test_vgm.py` emits `assets/testopl.vgm` — an A-major
+pentatonic scale, one voice, 5 s — enough to smoke-test the engine
+without waiting on the transcoder.
+
+```sh
+python3 scripts/make_test_vgm.py
+make floppy && make run
+# at the DOS prompt (ESC out of the RNG first):
+A:> ADLIB TESTOPL.VGM
+```
+
+### Roadmap
+
+- **#2b — OPL3→OPL2 transcoder (TODO).** Host-side Python tool that
+  reads an OPL3 VGM, simulates register state, and re-emits an
+  OPL2-native VGM. Voice folding is allocation-based rather than
+  naive drop-port-1, so notes should survive whenever there's a free
+  AdLib voice.
+
+### Adding a new player
+
+Implement the `player_t` vtable in `src/player.h` and wire it into
+`main.c`'s argv dispatch. Each player owns its own display layout on
+top of the `display_vga_*` primitives in `display.h`.
 
 ## License
 
