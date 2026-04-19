@@ -138,6 +138,24 @@ Phrase bank grew 8 → 16 entries (denser/more varied shapes).
     fresh per bar.
 - `phr_mode` / `PHR_*` dropped — subsumed by `melody_mode`.
 
+## Round 9 — bigger banks + structural variety
+
+- **User**: "1 is tooooo simple, only two notes per bar for the solo"
+  + "can we do more variations for 1-2-3 of the solo?"
+- **Phrase banks expanded**:
+  - `MINIMAL_BANK`: 6 → 10 entries, 3-8 notes per bar (was 1-3).
+  - `STAB_BANK`: 8 → 14 entries (new punchy/busy/cascade shapes).
+  - `PHRASE_BANK`: 16 → 20 entries.
+  - `PHRASE_PAIR_BANK`: 8 → 14 pairs.
+- **Structural variation** per locked mode:
+  - `MEL_MINIMAL_LOOP` now pre-picks **two** phrases and alternates
+    `AABB` across the 12 bars (each phrase plays 2 bars before the
+    other takes over). Still minimal; not identical every bar.
+  - `MEL_HOOK_2BAR` now rides an **arch-shape octave**: bars 1-4 at
+    base, bars 5-8 at +12 (bridge lift), bars 9-12 back at base.
+    Gives the locked hook a classic "drop up for 4 bars" moment
+    without breaking the loop feel.
+
 ## Invariants that settled along the way
 
 Things that got decided early-ish and haven't moved since:

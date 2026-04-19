@@ -23,7 +23,7 @@ static const int8_t PROG_MAJ4[PROG_LEN] = {
  * scale-degree indices (0..SCALE_LEN-1) or -1 for a rest. Mix of
  * sparse/dense and ascending/descending to give the RNG real options. */
 #define PHRASE_LEN   8
-#define PHRASE_COUNT 16
+#define PHRASE_COUNT 20
 static const int8_t PHRASE_BANK[PHRASE_COUNT][PHRASE_LEN] = {
     { 0, -1,  2, -1,  4, -1,  2, -1 },   /* 00: call — root-3-5-3     */
     { 0,  2,  4,  2,  0, -1, -1, -1 },   /* 01: ascend + trail off    */
@@ -40,12 +40,16 @@ static const int8_t PHRASE_BANK[PHRASE_COUNT][PHRASE_LEN] = {
     { 4,  3,  4,  2,  3,  2,  0, -1 },   /* 12: wavey descent         */
     { 0,  4,  0,  4,  0,  2,  4, -1 },   /* 13: octave-ish bounce     */
     { 2,  0,  2,  4,  2,  0, -1, -1 },   /* 14: call-and-taper        */
-    { 0,  2,  4,  3,  2,  4,  3,  2 }    /* 15: busy eights           */
+    { 0,  2,  4,  3,  2,  4,  3,  2 },   /* 15: busy eights           */
+    { 4, -1,  2,  0,  2,  4,  3,  2 },   /* 16: high start, settle    */
+    { 0,  3,  2,  4,  3,  0,  2,  4 },   /* 17: zigzag                */
+    { 2,  4,  3, -1,  0,  2,  4,  3 },   /* 18: offbeat climb         */
+    { 4,  2,  0,  2,  4,  3,  2,  0 }    /* 19: descend + land        */
 };
 
 /* 2-bar phrase pairs — indices into PHRASE_BANK. Chosen so the pair
  * forms a musical sentence (statement → answer, ascend → descend). */
-#define PHRASE_PAIR_COUNT 8
+#define PHRASE_PAIR_COUNT 14
 static const int8_t PHRASE_PAIR_BANK[PHRASE_PAIR_COUNT][2] = {
     { 0,  2 },   /* call → arch                    */
     { 1,  4 },   /* ascend → descending run        */
@@ -54,7 +58,13 @@ static const int8_t PHRASE_PAIR_BANK[PHRASE_PAIR_COUNT][2] = {
     { 10, 14 },  /* rolling → call-and-taper       */
     { 11, 12 },  /* stutter → wavey descent        */
     { 3,  5 },   /* sparse → jumpy answer          */
-    { 13, 4  }   /* bounce → descending resolution */
+    { 13, 4  },  /* bounce → descending resolution */
+    { 15, 7 },   /* busy → lazy answer             */
+    { 16, 19 },  /* high-start → descend+land      */
+    { 17, 14 },  /* zigzag → call-and-taper        */
+    { 18, 5 },   /* offbeat climb → jumpy          */
+    { 2,  8 },   /* arch → dense arpeggio          */
+    { 5,  16 }   /* jumpy → high-start             */
 };
 
 typedef enum {
@@ -123,22 +133,27 @@ static const char *VARIATION_DESC[NUM_VARIATIONS] = {
     "ref: rolling bass + dance drums + fresh-per-bar phrase + fills"
 };
 
-/* Minimal techno phrase bank — 1-3 notes per bar, lots of space.
- * Shares the 8-slot eighth-note grid of the main bank for simplicity. */
+/* Minimal techno phrase bank — still minimal compared to the main
+ * bank but now 3-7 notes per phrase (previous 1-3 was too empty).
+ * Shares the 8-slot eighth-note grid. */
 #define MINIMAL_LEN   8
-#define MINIMAL_COUNT 6
+#define MINIMAL_COUNT 10
 static const int8_t MINIMAL_BANK[MINIMAL_COUNT][MINIMAL_LEN] = {
-    { 0, -1, -1, -1, -1, -1,  4, -1 },   /* root + 5th                 */
-    { -1, -1, -1, -1,  2, -1, -1, -1 },  /* one offbeat note           */
-    { 0, -1, -1, -1,  4, -1, -1, -1 },   /* root on 1, 5th on 3        */
-    { -1, -1,  0, -1, -1, -1,  2, -1 },  /* 2 syncopated               */
-    { 0, -1, -1, -1, -1, -1, -1, -1 },   /* root only, held all bar    */
-    { 2, -1, -1, -1, -1, -1,  4, -1 }    /* 2nd then 5th               */
+    { 0, -1, -1,  4, -1,  2, -1,  4 },   /* 4 notes — root → 5 → 3 → 5  */
+    { -1, 2, -1,  4, -1,  2, -1,  4 },   /* 4 syncopated: 3-5-3-5       */
+    { 0,  2, -1,  4, -1,  2, -1, -1 },   /* 4 ascending with rests      */
+    { 0, -1,  4, -1,  2, -1,  0, -1 },   /* 4 alternating root-5-3-root */
+    { 4,  2,  0, -1,  4,  2,  0, -1 },   /* 6 descending × 2            */
+    { 0, -1,  2,  4, -1,  2, -1,  0 },   /* 5 notes, varied rhythm      */
+    { 2,  0,  2,  4,  0,  2,  0, -1 },   /* 7 notes, steady loop        */
+    { 0,  4, -1,  2,  4,  0, -1,  4 },   /* 6 jumpy                     */
+    { 0,  2,  4,  2,  0,  2,  4,  2 },   /* 8 pendulum                  */
+    { 2, -1,  4,  0,  2, -1,  4, -1 }    /* 5 staccato                  */
 };
 
 /* 16th-note stab bank for DnB. 16 slots per bar, each = 4 substeps. */
 #define STAB_LEN   16
-#define STAB_COUNT 8
+#define STAB_COUNT 14
 static const int8_t STAB_BANK[STAB_COUNT][STAB_LEN] = {
     { 0, -1,  2, -1,  4, -1, -1, -1,  0, -1, -1, -1,  4, -1,  2, -1 },
     { 0,  2, -1, -1,  4, -1, -1, -1,  0,  2, -1,  4, -1, -1, -1, -1 },
@@ -147,7 +162,13 @@ static const int8_t STAB_BANK[STAB_COUNT][STAB_LEN] = {
     { 0, -1, -1, -1,  4, -1, -1, -1,  2, -1, -1, -1,  0, -1, -1, -1 },
     { -1, 0,  2, -1, -1,  2,  0, -1, -1,  4,  2, -1, -1,  0, -1, -1 },
     { 0,  2,  0,  2,  0,  2,  4,  2,  0,  4,  0,  4,  2,  0,  2,  4 },
-    { 0, -1,  0,  4, -1, -1,  4, -1,  2, -1,  0,  2, -1, -1,  0, -1 }
+    { 0, -1,  0,  4, -1, -1,  4, -1,  2, -1,  0,  2, -1, -1,  0, -1 },
+    { 4, -1,  4, -1,  0,  0, -1, -1,  2, -1,  2, -1,  4,  4, -1, -1 },   /* punchy doubles */
+    { 0,  0,  0,  2,  4, -1,  2,  2,  0,  0,  4,  2,  0, -1, -1, -1 },   /* busy intro     */
+    { -1, -1, -1, 4,  2, -1, -1,  0, -1, -1,  4,  2, -1, -1,  0, -1 },   /* offbeat answer */
+    { 2,  4, -1,  0,  0, -1,  4,  2, -1,  0,  2, -1,  4, -1, -1,  0 },   /* cascading      */
+    { 0, -1, -1,  0, -1, -1,  4, -1,  0, -1, -1,  2, -1, -1,  4, -1 },   /* jungle-ish     */
+    { 4,  2,  4,  2,  0, -1,  2,  4,  0,  2,  4,  2,  0, -1,  4, -1 }    /* dense rolling  */
 };
 
 static int current_variation = 0;
@@ -436,8 +457,9 @@ static void apply_lead2(bar_t *bar, lead2_mode_t mode) {
 
 void music_generate(bar_t *bars, int num_bars) {
     const variation_t *v = &VARIATIONS[current_variation];
-    int locked_idx = 0;     /* for MINIMAL_LOOP */
-    int locked_pair = 0;    /* for HOOK_2BAR    */
+    int locked_idx_a = 0;   /* for MINIMAL_LOOP — "A" phrase         */
+    int locked_idx_b = 0;   /* for MINIMAL_LOOP — "B" phrase (AABB)  */
+    int locked_pair  = 0;   /* for HOOK_2BAR                         */
     int b;
     if (num_bars > BARS) num_bars = BARS;
 
@@ -445,7 +467,8 @@ void music_generate(bar_t *bars, int num_bars) {
      * up front so the RNG consumption is a known shape regardless of
      * melody mode, keeping bass/drum RNG comparable across switches. */
     if (v->melody_mode == MEL_MINIMAL_LOOP) {
-        locked_idx = rng_range(0, MINIMAL_COUNT - 1);
+        locked_idx_a = rng_range(0, MINIMAL_COUNT - 1);
+        locked_idx_b = rng_range(0, MINIMAL_COUNT - 1);
     } else if (v->melody_mode == MEL_HOOK_2BAR) {
         locked_pair = rng_range(0, PHRASE_PAIR_COUNT - 1);
     }
@@ -454,15 +477,23 @@ void music_generate(bar_t *bars, int num_bars) {
         gen_bar_skeleton(&bars[b], v, b);
 
         switch (v->melody_mode) {
-        case MEL_MINIMAL_LOOP:
-            apply_melody_minimal(&bars[b], locked_idx);
+        case MEL_MINIMAL_LOOP: {
+            /* AABB pattern across the 12 bars: each phrase plays for
+             * 2 bars before the other takes over. Still minimal, but
+             * not a literal 12× repeat of the same thing. */
+            int idx = (((b / 2) & 1) == 0) ? locked_idx_a : locked_idx_b;
+            apply_melody_minimal(&bars[b], idx);
             break;
+        }
         case MEL_STAB_16TH:
             apply_melody_stab(&bars[b], rng_range(0, STAB_COUNT - 1));
             break;
         case MEL_HOOK_2BAR: {
-            int oct = 0;    /* locked — keep the hook identical every pass */
+            /* Arch-shape octave across the loop: base on bars 1-4
+             * and 9-12, +12 lift on bars 5-8. Gives the locked hook
+             * a "bridge" moment without breaking the loop feel. */
             int idx = PHRASE_PAIR_BANK[locked_pair][b % 2];
+            int oct = (b >= 4 && b < 8) ? 12 : 0;
             apply_melody_phrase(&bars[b], idx, oct);
             break;
         }
