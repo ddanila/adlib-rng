@@ -89,7 +89,7 @@ static const variation_t VARIATIONS[NUM_VARIATIONS] = {
 static const char *VARIATION_DESC[NUM_VARIATIONS] = {
     "phrase-bank melody over 12-bar blues (I-IV-V), root bass",
     "phrase-bank melody over I-vi-IV-V 50s pop, root bass",
-    "50s pop, bass walks root -> chord tone every half-bar",
+    "50s pop, bass walks root -> A-pent note every half-bar",
     "50s pop, melody draws 2-bar phrase pairs (call+answer)"
 };
 
@@ -135,13 +135,32 @@ static void gen_chord_half_roots(bar_t *bar, int half, int8_t chord_root) {
     bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
 }
 
-/* Walking bass: root on the down-beat, an RNG-picked chord tone on
- * the back-beat. Every half-bar gets two bass notes — more motion. */
+/* Walking bass: root on the down-beat, a key-safe passing tone on
+ * the back-beat. The earlier version used fixed intervals (+4, +7,
+ * +9 = major 3rd/5th/6th), which assumed every chord was major. The
+ * 50s progression has vi (F#m) in it, and +4 / +9 over F# landed on
+ * A# / D# — both outside A major pentatonic — so 2 of 3 walking
+ * notes on that chord were out of tune. We now pick the offset so
+ * the walking note is always in A pentatonic, regardless of the
+ * chord's quality. */
+static int8_t pick_pent_walk_offset(int8_t chord_root) {
+    /* A pentatonic spread over two octaves (semitones from A). */
+    static const int8_t PENT_SEMIS[] = { 0, 2, 4, 7, 9, 12, 14, 16, 19, 21 };
+    int8_t root_mod = (int8_t)(chord_root % 12);
+    int8_t offs[6];
+    int n = 0, i;
+    for (i = 0; i < (int)(sizeof(PENT_SEMIS) / sizeof(PENT_SEMIS[0])); i++) {
+        int8_t d = (int8_t)(PENT_SEMIS[i] - root_mod);
+        if (d > 0 && d <= 12 && n < 6) offs[n++] = d;
+    }
+    if (n == 0) return 7;   /* fallback: perfect fifth (always safe) */
+    return offs[rng_range(0, n - 1)];
+}
+
 static void gen_chord_half_walking(bar_t *bar, int half, int8_t chord_root) {
-    static const int8_t WALK_CHOICES[] = { 4, 7, 9 };  /* 3rd, 5th, 6th */
     int base = half * STEPS_PER_CHORD;
     int mid  = base + STEPS_PER_CHORD / 2;
-    int8_t walk = WALK_CHOICES[rng_range(0, 2)];
+    int8_t walk = pick_pent_walk_offset(chord_root);
 
     place_bass(bar, base, chord_root, 0);
     place_bass(bar, mid,  chord_root, walk);
