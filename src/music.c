@@ -57,9 +57,19 @@ static const int8_t PHRASE_PAIR_BANK[PHRASE_PAIR_COUNT][2] = {
     { 13, 4  }   /* bounce → descending resolution */
 };
 
-typedef enum { BASS_ROOTS = 0, BASS_WALKING = 1, BASS_ROLLING = 2 } bass_mode_t;
-typedef enum { PHR_BAR   = 0, PHR_2BAR      = 1 }                   phrase_mode_t;
-typedef enum { DRUMS_ROCK = 0, DRUMS_DANCE  = 1 }                   drum_pattern_t;
+typedef enum {
+    BASS_ROOTS   = 0,
+    BASS_WALKING = 1,
+    BASS_ROLLING = 2,
+    BASS_PUMP    = 3    /* octave jumps on 8ths: root, +12, root, +12 — funk/Daft Punk bass */
+} bass_mode_t;
+typedef enum { PHR_BAR = 0, PHR_2BAR = 1 } phrase_mode_t;
+typedef enum {
+    DRUMS_ROCK   = 0,
+    DRUMS_DANCE  = 1,
+    DRUMS_TECHNO = 2,   /* 4-on-the-floor + off-beat hats only, no snare */
+    DRUMS_BREAK  = 3    /* breakbeat: syncopated kicks, snare + ghosts, busy hats */
+} drum_pattern_t;
 
 /* lead2_mode: what the second melodic voice (ch 2) does.
  *   NONE     — silent (V1, V2)
@@ -76,21 +86,21 @@ typedef struct {
     lead2_mode_t   lead2_mode;
 } variation_t;
 
-/* V1/V2 are the 90s-electronic slots the user committed to as the
- * baseline. V3/V4 stack a second melodic voice on top of V1 to
- * experiment with the solo feeling less static. */
+/* V1-V3 try three different genres at our 120 BPM; V4 is the
+ * reference "90s+fills" from the previous round, left as an anchor
+ * to compare the new styles against. */
 static const variation_t VARIATIONS[NUM_VARIATIONS] = {
-    { "90s+phr",   PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE, LEAD2_NONE    },
-    { "90s+2bar",  PROG_MAJ4, PHR_2BAR, BASS_ROLLING, DRUMS_DANCE, LEAD2_NONE    },
-    { "90s+harm",  PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE, LEAD2_HARMONY },
-    { "90s+fills", PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE, LEAD2_FILLS   }
+    { "techno",    PROG_MAJ4, PHR_BAR,  BASS_ROOTS,   DRUMS_TECHNO, LEAD2_NONE    },
+    { "dnb",       PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_BREAK,  LEAD2_HARMONY },
+    { "daft",      PROG_MAJ4, PHR_2BAR, BASS_PUMP,    DRUMS_DANCE,  LEAD2_HARMONY },
+    { "90s+fills", PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE,  LEAD2_FILLS   }
 };
 
 static const char *VARIATION_DESC[NUM_VARIATIONS] = {
-    "I-III-IV-V, rolling 16th bass + 4-on-floor, phrase melody",
-    "I-III-IV-V, rolling 16th bass + 4-on-floor, 2-bar phrase pairs",
-    "V1 + 2nd lead voice doubling melody an octave up (bright patch)",
-    "V1 + 2nd lead voice playing 16th ornaments between phrase notes"
+    "minimal techno: 4-on-floor + off-beat hats only, root bass",
+    "drum & bass: breakbeat + rolling sub bass + octave harmony",
+    "daft punk: octave-pump bass + house drums + 2-bar loop harmony",
+    "ref (90s+fills): rolling bass + dance drums + 16th ornaments"
 };
 
 static int current_variation = 0;
@@ -172,6 +182,19 @@ static void gen_chord_half_rolling(bar_t *bar, int half, int8_t chord_root) {
     bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
 }
 
+/* Pumping bass: root on down-beat, octave up on the "and". 4 hits
+ * per half-bar on 8ths — root, +12, root, +12. That's the funky
+ * Daft Punk / French-house bassline shape. */
+static void gen_chord_half_pump(bar_t *bar, int half, int8_t chord_root) {
+    int base = half * STEPS_PER_CHORD;
+    int i;
+    for (i = 0; i < STEPS_PER_CHORD; i += 8) {
+        int8_t offset = ((i / 8) & 1) ? 12 : 0;
+        place_bass(bar, base + i, chord_root, offset);
+    }
+    bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
+}
+
 static void gen_melody_from_phrase(bar_t *bar, int phrase_idx) {
     int oct = (rng_range(0, 4) == 0) ? 12 : 0;
     const int8_t *p = PHRASE_BANK[phrase_idx];
@@ -245,6 +268,46 @@ static void apply_drums_dance(bar_t *bar) {
     if (rng_range(0, 9) < 3) bar->drums[36] = (uint8_t)(bar->drums[36] | DRUM_HAT);
 }
 
+static void apply_drums_techno(bar_t *bar) {
+    /* Minimal techno: 4-on-the-floor kick, off-beat hats only, no
+     * snare/clap. Space is the signature. */
+    bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
+    bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_KICK);
+    bar->drums[32] = (uint8_t)(bar->drums[32] | DRUM_KICK);
+    bar->drums[48] = (uint8_t)(bar->drums[48] | DRUM_KICK);
+    bar->drums[8]  = (uint8_t)(bar->drums[8]  | DRUM_HAT);
+    bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_HAT);
+    bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_HAT);
+    bar->drums[56] = (uint8_t)(bar->drums[56] | DRUM_HAT);
+}
+
+static void apply_drums_break(bar_t *bar) {
+    /* Breakbeat: syncopated kicks (not on every beat), snare on 2 & 4
+     * with an occasional "ghost" snare on the "and" of 4, hats on
+     * 8ths plus random 16th ghosts. Busier, shuffled feel. */
+    bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
+    bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_KICK);
+    bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_KICK);
+
+    bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_SNARE);
+    bar->drums[48] = (uint8_t)(bar->drums[48] | DRUM_SNARE);
+    if (rng_range(0, 9) < 4) {
+        bar->drums[56] = (uint8_t)(bar->drums[56] | DRUM_SNARE);   /* ghost */
+    }
+
+    {
+        int s;
+        for (s = 0; s < STEPS_PER_BAR; s += 8) {
+            bar->drums[s] = (uint8_t)(bar->drums[s] | DRUM_HAT);
+        }
+    }
+    /* 16th ghost hats — coin-flip per position */
+    if (rng_range(0, 1)) bar->drums[4]  = (uint8_t)(bar->drums[4]  | DRUM_HAT);
+    if (rng_range(0, 1)) bar->drums[20] = (uint8_t)(bar->drums[20] | DRUM_HAT);
+    if (rng_range(0, 1)) bar->drums[36] = (uint8_t)(bar->drums[36] | DRUM_HAT);
+    if (rng_range(0, 1)) bar->drums[52] = (uint8_t)(bar->drums[52] | DRUM_HAT);
+}
+
 static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_idx) {
     int s;
     int8_t chord_a = v->progression[bar_idx * CHORDS_PER_BAR + 0];
@@ -266,6 +329,10 @@ static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_id
         gen_chord_half_rolling(bar, 0, chord_a);
         gen_chord_half_rolling(bar, 1, chord_b);
         break;
+    case BASS_PUMP:
+        gen_chord_half_pump(bar, 0, chord_a);
+        gen_chord_half_pump(bar, 1, chord_b);
+        break;
     case BASS_ROOTS:
     default:
         gen_chord_half_roots(bar, 0, chord_a);
@@ -282,10 +349,12 @@ static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_id
     default:            break;
     }
 
-    if (v->drum_pattern == DRUMS_DANCE) {
-        apply_drums_dance(bar);
-    } else {
-        apply_drums_rock(bar);
+    switch (v->drum_pattern) {
+    case DRUMS_DANCE:  apply_drums_dance(bar);  break;
+    case DRUMS_TECHNO: apply_drums_techno(bar); break;
+    case DRUMS_BREAK:  apply_drums_break(bar);  break;
+    case DRUMS_ROCK:
+    default:           apply_drums_rock(bar);   break;
     }
 }
 

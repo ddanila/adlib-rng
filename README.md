@@ -76,16 +76,19 @@ Keys while playing (RNG re-seeds on every switch, so only the
 variation itself changes — clean A/B):
 
 - `ESC` — quit
-- `1` — `90s+phr` — rolling 16th-note bass + 4-on-the-floor dance
-  drums (late-90s DnB / big-beat shape, Aphrodite-ish at our tempo),
-  1-bar phrase melody, `I-III-IV-V`
-- `2` — `90s+2bar` — same dance drums + rolling bass as **1**, but
-  the melody draws 2-bar phrase *pairs* (statement → answer)
-- `3` — `90s+harm` — **1** plus a second lead voice (OPL channel 2,
-  brighter/pluckier patch) doubling the melody an octave up — thicker
-  synth-lead sound
-- `4` — `90s+fills` — **1** plus a second lead voice playing 16th-note
-  ornamental fills between the main phrase notes — more activity
+- `1` — `techno` — minimal techno: 4-on-the-floor kick + off-beat
+  hats only (no snare/clap), root-only bass, no second voice. Space
+  is the signature.
+- `2` — `dnb` — drum & bass: breakbeat drums (syncopated kicks, snare
+  on 2/4 with ghosts, 16th ghost hats), rolling 16th sub-bass,
+  octave-up harmony voice for energy.
+- `3` — `daft` — Daft Punk / French-house: octave-pumping bass (root
+  and octave alternating on 8ths), house drums (kick every beat +
+  clap on 2/4), 2-bar phrase pairs doubled an octave up (locked-loop
+  feel).
+- `4` — `90s+fills` — reference from the previous round: rolling bass
+  + dance drums + 16th-note ornamental fills between phrase notes.
+  Kept as the anchor to compare the new genre experiments against.
 
 All progressions are `I-III-IV-V` (A - C# - D - E) — all-major, no vi.
 
