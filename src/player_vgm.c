@@ -104,6 +104,19 @@ static const uint8_t TL_CLAMPS[] = { 0xFF, 0x20, 0x10, 0x08, 0x00 };
 #define TL_CLAMPS_N  (sizeof(TL_CLAMPS) / sizeof(TL_CLAMPS[0]))
 static int g_k_tl_clamp_idx = 0;
 
+/* Click-experiment knob: cycles between the transcoder-default behaviour
+ * and two alternative fixes, so they can be A/B'd at runtime. */
+enum {
+    EXP_OFF = 0,
+    EXP_SOFT_ATTACK,   /* a) subtract 2 from AR on every 0x60-0x75 write —
+                          softens the envelope ramp-up, which is one
+                          suspect for the attack-edge click.            */
+    EXP_SILENT_23,     /* b) swallow key-off writes on dst 2 and 3 only —
+                          per-dst surgical version of knob [3].         */
+    EXP_N
+};
+static int g_k_experiment = EXP_OFF;
+
 /* ------------------------------------------------------------------ *
  *  OPL register-geometry helpers.                                    *
  * ------------------------------------------------------------------ */
@@ -287,6 +300,34 @@ static void stream_write(uint8_t reg, uint8_t val) {
         }
     }
 
+    /* [6] Click experiments. */
+    if (g_k_experiment == EXP_SOFT_ATTACK &&
+        reg >= 0x60 && reg <= 0x75) {
+        /* Lower the AR (upper nibble) by 2, keep DR (lower nibble).
+         * OPL AR=15 is instant, AR=0 is slowest — subtracting 2 makes
+         * the ramp-up noticeably gentler, which softens the edge that
+         * reads as a click on loud notes. */
+        uint8_t ar = (out >> 4) & 0x0F;
+        uint8_t dr = out & 0x0F;
+        ar = (ar >= 2) ? (uint8_t)(ar - 2) : 0;
+        out = (uint8_t)((ar << 4) | dr);
+    }
+    if (g_k_experiment == EXP_SILENT_23 &&
+        reg >= 0xB0 && reg <= 0xB8) {
+        int ch = reg - 0xB0;
+        if ((ch == 2 || ch == 3) && !(out & 0x20)) {
+            /* Swallow the key-off on exactly the two dsts the listener
+             * reports as click-prone. Track the intent in the shadow
+             * so the HUD stays honest. */
+            update_shadow(reg, out);
+            MARK_REG(reg);
+            g_writes++;
+            g_last_reg = reg;
+            g_last_val = out;
+            return;
+        }
+    }
+
     opl_write((uint16_t)reg, out);
     update_shadow(reg, out);
     MARK_REG(reg);
@@ -398,7 +439,16 @@ static void draw_knobs(void) {
     }
     display_vga_printf(24, 2, ATTR_KNOB, "[3] key-off:  %s",
                        g_k_skip_keyoff ? "SKIP   " : "normal ");
-    display_vga_puts(24, 30, ATTR_LABEL, "ESC: quit  1-5: cycle");
+    {
+        const char *exp;
+        switch (g_k_experiment) {
+        case EXP_SOFT_ATTACK: exp = "soft attack"; break;
+        case EXP_SILENT_23:   exp = "silent 2-3 "; break;
+        default:              exp = "off        "; break;
+        }
+        display_vga_printf(24, 30, ATTR_KNOB, "[6] exp: %s", exp);
+    }
+    display_vga_puts(24, 55, ATTR_LABEL, "ESC quit  1-6");
 }
 
 static void draw_progress(uint32_t now_ms) {
@@ -654,6 +704,9 @@ static void player_vgm_on_key(int k) {
         break;
     case '5':
         g_k_tl_clamp_idx = (g_k_tl_clamp_idx + 1) % (int)TL_CLAMPS_N;
+        break;
+    case '6':
+        g_k_experiment = (g_k_experiment + 1) % EXP_N;
         break;
     default:
         return;
