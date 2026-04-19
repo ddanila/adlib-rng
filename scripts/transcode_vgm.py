@@ -164,18 +164,23 @@ class AnalysisResult:
 
 
 def analyze(data: bytes, data_offset: int,
+            enable_legato: bool = False,
             sl_ceiling: int = 2) -> AnalysisResult:
     """Walk the source once, simulating OPL3 state, then pick auto-fixes.
 
-    Legato criterion: if a channel's dominant carrier Sustain Level is
-    <= `sl_ceiling`, the envelope decays to (near) silence on its own.
-    The explicit key-off from the source only provides an audible edge
-    on OPL2, so we skip it — no click.
+    Legato (opt-in via --legato). If a channel's dominant carrier
+    Sustain Level is <= `sl_ceiling`, its envelope self-decays to
+    silence and the explicit source key-off is cosmetic. Skipping it
+    removes an OPL2 click — but because a suppressed key-off also
+    keeps the dst logically busy, the voice allocator can't reclaim
+    that channel for a different source, and per-note articulation
+    flattens into a pitch-bend drone. So we leave legato off unless
+    the user asks for it explicitly.
 
-    TL clamp: pooled across all key-ons, we pick the median carrier-TL.
-    Anything quieter than that in the output gets pulled up to it, so
-    the background layer survives without the lead layer being pushed
-    into distortion.
+    TL clamp (default on): pooled across all key-ons, we pick the
+    median carrier-TL. Anything quieter than that in the output gets
+    pulled up to it, so the background layer survives without the
+    lead layer being pushed into distortion.
     """
     src = [SrcChannel() for _ in range(18)]
     note_count = [0] * 18
@@ -235,7 +240,7 @@ def analyze(data: bytes, data_offset: int,
         # Dominant SL for this channel (most-common at key-on).
         dom_sl = max(sl_samples[ch].items(), key=lambda kv: kv[1])[0]
         result.sl_by_ch[ch] = dom_sl
-        if dom_sl <= sl_ceiling:
+        if enable_legato and dom_sl <= sl_ceiling:
             result.legato[ch] = True
 
     if result.tl_pooled:
@@ -563,16 +568,16 @@ def main() -> int:
     args = list(sys.argv[1:])
     trace = False
     raw   = False
-    no_legato = False
-    no_clamp  = False
+    want_legato = False
+    no_clamp    = False
     while args and args[0].startswith("--"):
         flag = args.pop(0)
         if flag == "--trace":
             trace = True
         elif flag == "--raw":
             raw = True
-        elif flag == "--no-legato":
-            no_legato = True
+        elif flag == "--legato":
+            want_legato = True
         elif flag == "--no-clamp":
             no_clamp = True
         else:
@@ -581,7 +586,7 @@ def main() -> int:
     if len(args) != 2:
         print(
             f"usage: {sys.argv[0]} "
-            f"[--raw | --no-legato | --no-clamp] [--trace] SRC.vgm DST.vgm",
+            f"[--raw | --legato | --no-clamp] [--trace] SRC.vgm DST.vgm",
             file=sys.stderr,
         )
         return 2
@@ -602,9 +607,7 @@ def main() -> int:
     if raw:
         print("pre-pass: skipped (--raw)")
     else:
-        analysis = analyze(data, hdr.data_offset)
-        if no_legato:
-            analysis.legato = [False] * 18
+        analysis = analyze(data, hdr.data_offset, enable_legato=want_legato)
         if no_clamp:
             analysis.tl_clamp = None
         tl = analysis.tl_pooled
@@ -626,13 +629,14 @@ def main() -> int:
 
         legato_ch = [ch for ch in range(18) if analysis.legato[ch]]
         if legato_ch:
-            print("  auto-legato: skipping key-off on src channels",
+            print("  --legato: skipping key-off on src channels",
                   ",".join(str(c) for c in legato_ch),
-                  "(SL<=2, envelope self-decays)")
-        elif no_legato:
-            print("  auto-legato: disabled (--no-legato)")
+                  "(SL<=2)")
+        elif want_legato:
+            print("  --legato: no channels met the SL<=2 rule")
         else:
-            print("  auto-legato: no channels flagged")
+            print("  legato: off (use --legato to opt in; "
+                  "expect articulation to flatten)")
 
     t = Transcoder(analysis=analysis, trace=trace)
     total_samples = 0
