@@ -76,14 +76,17 @@ make clean
 
 ## Usage
 
-Inside DOS (the floppy's `AUTOEXEC.BAT` runs it automatically with
-default args):
+Inside DOS:
 
 ```
 A:> ADLIB                default seed 0x1337 (RNG player)
 A:> ADLIB 42             seed = 42 (RNG player)
 A:> ADLIB SUSPENSE.VGM   VGM player (see "VGM mode" below)
 ```
+
+The floppy's `AUTOEXEC.BAT` auto-runs `ADLIB SUSPENSE.VGM` on boot,
+so `make run` drops you straight into VGM playback. Hit `ESC` and
+you're at the DOS prompt to try other variants.
 
 Argument convention: a filename contains a dot (e.g. `SUSPENSE.VGM`);
 anything else is treated as a numeric seed for the RNG player.
