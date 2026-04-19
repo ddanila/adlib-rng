@@ -77,12 +77,11 @@ Keys while playing:
 
 ## What you'll hear
 
-Quick-change minor blues in A at half-bar resolution. The full round
-`i-i-i-i / iv-iv-i-i / V-iv-i-V` (24 chord changes) plays through
+Quick-change blues in A major at half-bar resolution. The full round
+`I-I-I-I / IV-IV-I-I / V-IV-I-V` (24 chord changes) plays through
 twice across the 12-bar window. Bass plays roots and a few optional
-fifths. Melody picks scale notes from A natural minor — *key*-
-anchored, not chord-anchored, so the solo stays in key over the V
-chord (blues idiom).
+fifths. Melody picks scale notes from A major — *key*-anchored, not
+chord-anchored, so the solo stays in key over every chord.
 Drums hit a basic kick / snare / hat pattern with a sprinkle of
 RNG-driven extra kicks. Tempo is fixed at 120 BPM, 64 substeps/bar.
 

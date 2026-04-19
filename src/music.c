@@ -2,14 +2,15 @@
 #include "rng.h"
 #include <string.h>
 
-/* A natural minor scale: semitone offsets from the tonic. */
-static const int8_t SCALE_MINOR[] = { 0, 2, 3, 5, 7, 8, 10 };
+/* A major scale: semitone offsets from the tonic. */
+static const int8_t SCALE_MAJOR[] = { 0, 2, 4, 5, 7, 9, 11 };
 #define SCALE_LEN 7
 
-/* Standard 12-bar minor blues compressed to 6 bars (each chord = half
- * a bar) and looped twice across our 12-bar window — 24 chord changes
- * total. One round, written as half-bars:
- *   i  i | i  i | iv iv | i  i | V  iv | i  V
+/* Standard 12-bar blues in A major, compressed to 6 bars (each chord
+ * = half a bar) and looped twice across our 12-bar window — 24 chord
+ * changes total. Same chord roots as the minor variant; melody is
+ * what makes it major. One round, written as half-bars:
+ *   I  I | I  I | IV IV | I  I | V  IV | I  V
  *  bar1   bar2   bar3    bar4   bar5    bar6
  */
 #define BLUES_ROUND_HALFBARS 12
@@ -49,11 +50,11 @@ static void gen_bar(bar_t *bar, int8_t chord_a, int8_t chord_b) {
     gen_chord_half(bar, 0, chord_a);
     gen_chord_half(bar, 1, chord_b);
 
-    /* Melody: 8th-note grid, 60% chance per slot. Picks from A natural
-     * minor (key-anchored), occasional octave jump for movement. */
+    /* Melody: 8th-note grid, 60% chance per slot. Picks from A major
+     * (key-anchored), occasional octave jump for movement. */
     for (s = 0; s < STEPS_PER_BAR; s += 8) {
         if (rng_range(0, 9) < 6) {
-            int8_t deg = SCALE_MINOR[rng_range(0, SCALE_LEN - 1)];
+            int8_t deg = SCALE_MAJOR[rng_range(0, SCALE_LEN - 1)];
             int8_t oct = (rng_range(0, 9) < 3) ? 12 : 0;
             bar->melody[s] = (int8_t)(MELODY_BASE_MIDI + KEY_ROOT + deg + oct);
         }
