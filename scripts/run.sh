@@ -12,12 +12,20 @@ if [[ ! -f "$FLOPPY" ]]; then
 fi
 
 case "$(uname -s)" in
-    Darwin) AUDIODRV=coreaudio ;;
-    Linux)  AUDIODRV=pa ;;
-    *)      AUDIODRV=sdl ;;
+    Darwin) AUDIODRV=coreaudio; DISPLAY_BACKEND=cocoa ;;
+    Linux)  AUDIODRV=pa;        DISPLAY_BACKEND=gtk   ;;
+    *)      AUDIODRV=sdl;       DISPLAY_BACKEND=sdl   ;;
 esac
 
-echo "Booting: $FLOPPY  (audio=$AUDIODRV)"
+# Pick the first display backend qemu actually has compiled in.
+for d in "$DISPLAY_BACKEND" sdl gtk cocoa curses; do
+    if qemu-system-i386 -display help 2>&1 | grep -q "^$d\$"; then
+        DISPLAY_BACKEND=$d
+        break
+    fi
+done
+
+echo "Booting: $FLOPPY  (audio=$AUDIODRV, display=$DISPLAY_BACKEND)"
 exec qemu-system-i386 \
     -drive if=floppy,format=raw,file="$FLOPPY" \
     -boot a \
@@ -25,5 +33,5 @@ exec qemu-system-i386 \
     -audiodev "$AUDIODRV,id=snd0" \
     -machine pcspk-audiodev=snd0 \
     -device adlib,audiodev=snd0 \
-    -display sdl \
+    -display "$DISPLAY_BACKEND" \
     -name "adlib-rng"
