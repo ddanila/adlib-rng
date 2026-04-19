@@ -28,9 +28,10 @@ WATCOM_LIB = $(WATCOM_DIR)/lib286/dos
 # -oi   = inline intrinsics (memset/memcpy)
 WCCFLAGS = -0 -ms -os -s -za99 -w4 -we -oi -i=$(WATCOM_H)
 
-SRC = src/main.c src/opl2.c src/timer.c src/rng.c src/music.c src/display.c
-OBJ = $(SRC:src/%.c=build/%.obj)
-EXE = build/adlib.exe
+SRC     = src/main.c src/opl2.c src/timer.c src/rng.c src/music.c src/display.c
+OBJ     = $(SRC:src/%.c=build/%.obj)
+HEADERS = $(wildcard src/*.h)
+EXE     = build/adlib.exe
 
 # Bootable MS-DOS 4.0 floppy. Pulled as a release asset from the
 # ddanila/msdos project. Override FLOPPY_SRC to use your own image.
@@ -46,7 +47,10 @@ all: $(EXE)
 build:
 	@mkdir -p build build/dos
 
-build/%.obj: src/%.c | build
+# Conservative: rebuild every TU when any header changes. With 6 TUs
+# and tiny compile times this is fine, and it avoids the bar_t-size
+# desync we hit when chord_root_midi grew to an array.
+build/%.obj: src/%.c $(HEADERS) | build
 	$(WCC) $(WCCFLAGS) -fo=$@ $<
 
 $(EXE): $(OBJ)
