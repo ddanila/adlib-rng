@@ -118,7 +118,7 @@ enum {
                           higher-pitched release fade intact.           */
     EXP_N
 };
-static int g_k_experiment = EXP_OFF;
+static int g_k_experiment = EXP_AUTO_BASS;
 #define BASS_BLOCK_LT   3
 
 /* ------------------------------------------------------------------ *
