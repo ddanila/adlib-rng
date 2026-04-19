@@ -167,10 +167,11 @@ static void draw_bar_index(int cur_bar) {
 void display_frame(int cur_bar, int cur_step, const bar_t *bar) {
     char m[8], b[8], c[8];
     uint8_t d = bar->drums[cur_step];
+    int chord_idx = cur_step / STEPS_PER_CHORD;
 
-    note_str(bar->melody[cur_step], m);
-    note_str(bar->bass[cur_step],   b);
-    note_str(bar->chord_root_midi,  c);
+    note_str(bar->melody[cur_step],            m);
+    note_str(bar->bass[cur_step],              b);
+    note_str(bar->chord_root_midi[chord_idx],  c);
 
     vga_printf(2,  5, ATTR_VALUE, "%2d/12", cur_bar + 1);
     vga_printf(2, 22, ATTR_VALUE, "%2d/64", cur_step);
