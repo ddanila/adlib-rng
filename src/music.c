@@ -61,46 +61,93 @@ typedef enum {
     BASS_ROOTS   = 0,
     BASS_WALKING = 1,
     BASS_ROLLING = 2,
-    BASS_PUMP    = 3    /* octave jumps on 8ths: root, +12, root, +12 — funk/Daft Punk bass */
+    BASS_PUMP    = 3    /* octave jumps on 8ths — funk / Daft Punk bass */
 } bass_mode_t;
-typedef enum { PHR_BAR = 0, PHR_2BAR = 1 } phrase_mode_t;
 typedef enum {
     DRUMS_ROCK   = 0,
     DRUMS_DANCE  = 1,
-    DRUMS_TECHNO = 2,   /* 4-on-the-floor + off-beat hats only, no snare */
-    DRUMS_BREAK  = 3    /* breakbeat: syncopated kicks, snare + ghosts, busy hats */
+    DRUMS_TECHNO = 2,   /* 4-on-floor + off-beat hats only, no snare    */
+    DRUMS_BREAK  = 3    /* breakbeat: syncopated kicks + snare ghosts   */
 } drum_pattern_t;
+/* melody_mode: how the solo line is generated. Each variation gets
+ * its own strategy so the melody stops sounding identical across
+ * genres.
+ *   FRESH_PHRASE  — random 1-bar phrase from PHRASE_BANK every bar
+ *                   (the previous universal behaviour; kept for V4)
+ *   MINIMAL_LOOP  — pick ONE phrase from MINIMAL_BANK (sparse, 2-3
+ *                   notes per bar) and repeat it for all 12 bars —
+ *                   real minimal-techno behaviour
+ *   STAB_16TH     — random phrase from a separate 16-slot bank on
+ *                   the 16th-note grid — faster, stab-like
+ *   HOOK_2BAR     — pick ONE 2-bar phrase pair from PHRASE_PAIR_BANK
+ *                   and repeat it across the 6 pair-slots in the
+ *                   12-bar loop — Daft Punk's locked-hook signature
+ */
+typedef enum {
+    MEL_FRESH_PHRASE = 0,
+    MEL_MINIMAL_LOOP = 1,
+    MEL_STAB_16TH    = 2,
+    MEL_HOOK_2BAR    = 3
+} melody_mode_t;
 
 /* lead2_mode: what the second melodic voice (ch 2) does.
- *   NONE     — silent (V1, V2)
- *   HARMONY  — doubles the melody one octave up (V3)
- *   FILLS    — 16th-note ornaments between main phrase notes (V4) */
+ *   NONE     — silent
+ *   HARMONY  — doubles the melody one octave up
+ *   FILLS    — 16th-note ornaments between main phrase notes
+ */
 typedef enum { LEAD2_NONE = 0, LEAD2_HARMONY = 1, LEAD2_FILLS = 2 } lead2_mode_t;
 
 typedef struct {
     const char    *name;
     const int8_t  *progression;
-    phrase_mode_t  phr_mode;
     bass_mode_t    bass_mode;
     drum_pattern_t drum_pattern;
+    melody_mode_t  melody_mode;
     lead2_mode_t   lead2_mode;
 } variation_t;
 
-/* V1-V3 try three different genres at our 120 BPM; V4 is the
- * reference "90s+fills" from the previous round, left as an anchor
- * to compare the new styles against. */
+/* Each genre now drives the melody too, not just drums + bass. V4 is
+ * the reference — the previous round's "90s+fills" — left as an
+ * anchor for comparison. */
 static const variation_t VARIATIONS[NUM_VARIATIONS] = {
-    { "techno",    PROG_MAJ4, PHR_BAR,  BASS_ROOTS,   DRUMS_TECHNO, LEAD2_NONE    },
-    { "dnb",       PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_BREAK,  LEAD2_HARMONY },
-    { "daft",      PROG_MAJ4, PHR_2BAR, BASS_PUMP,    DRUMS_DANCE,  LEAD2_HARMONY },
-    { "90s+fills", PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE,  LEAD2_FILLS   }
+    { "techno",    PROG_MAJ4, BASS_ROOTS,   DRUMS_TECHNO, MEL_MINIMAL_LOOP, LEAD2_NONE    },
+    { "dnb",       PROG_MAJ4, BASS_ROLLING, DRUMS_BREAK,  MEL_STAB_16TH,    LEAD2_HARMONY },
+    { "daft",      PROG_MAJ4, BASS_PUMP,    DRUMS_DANCE,  MEL_HOOK_2BAR,    LEAD2_HARMONY },
+    { "90s+fills", PROG_MAJ4, BASS_ROLLING, DRUMS_DANCE,  MEL_FRESH_PHRASE, LEAD2_FILLS   }
 };
 
 static const char *VARIATION_DESC[NUM_VARIATIONS] = {
-    "minimal techno: 4-on-floor + off-beat hats only, root bass",
-    "drum & bass: breakbeat + rolling sub bass + octave harmony",
-    "daft punk: octave-pump bass + house drums + 2-bar loop harmony",
-    "ref (90s+fills): rolling bass + dance drums + 16th ornaments"
+    "techno: 4-on-floor + offbeat hats, root bass, locked 1-bar motif",
+    "d&b: breakbeat + rolling bass + 16th stabs + octave harmony",
+    "daft: pump bass + house drums + locked 2-bar hook + harmony",
+    "ref: rolling bass + dance drums + fresh-per-bar phrase + fills"
+};
+
+/* Minimal techno phrase bank — 1-3 notes per bar, lots of space.
+ * Shares the 8-slot eighth-note grid of the main bank for simplicity. */
+#define MINIMAL_LEN   8
+#define MINIMAL_COUNT 6
+static const int8_t MINIMAL_BANK[MINIMAL_COUNT][MINIMAL_LEN] = {
+    { 0, -1, -1, -1, -1, -1,  4, -1 },   /* root + 5th                 */
+    { -1, -1, -1, -1,  2, -1, -1, -1 },  /* one offbeat note           */
+    { 0, -1, -1, -1,  4, -1, -1, -1 },   /* root on 1, 5th on 3        */
+    { -1, -1,  0, -1, -1, -1,  2, -1 },  /* 2 syncopated               */
+    { 0, -1, -1, -1, -1, -1, -1, -1 },   /* root only, held all bar    */
+    { 2, -1, -1, -1, -1, -1,  4, -1 }    /* 2nd then 5th               */
+};
+
+/* 16th-note stab bank for DnB. 16 slots per bar, each = 4 substeps. */
+#define STAB_LEN   16
+#define STAB_COUNT 8
+static const int8_t STAB_BANK[STAB_COUNT][STAB_LEN] = {
+    { 0, -1,  2, -1,  4, -1, -1, -1,  0, -1, -1, -1,  4, -1,  2, -1 },
+    { 0,  2, -1, -1,  4, -1, -1, -1,  0,  2, -1,  4, -1, -1, -1, -1 },
+    { -1, 0, -1,  4, -1,  2, -1, -1, -1,  0, -1,  4, -1,  2, -1, -1 },
+    { 4,  4, -1, -1,  2,  2, -1, -1,  0,  0, -1, -1,  2,  4, -1, -1 },
+    { 0, -1, -1, -1,  4, -1, -1, -1,  2, -1, -1, -1,  0, -1, -1, -1 },
+    { -1, 0,  2, -1, -1,  2,  0, -1, -1,  4,  2, -1, -1,  0, -1, -1 },
+    { 0,  2,  0,  2,  0,  2,  4,  2,  0,  4,  0,  4,  2,  0,  2,  4 },
+    { 0, -1,  0,  4, -1, -1,  4, -1,  2, -1,  0,  2, -1, -1,  0, -1 }
 };
 
 static int current_variation = 0;
@@ -195,8 +242,8 @@ static void gen_chord_half_pump(bar_t *bar, int half, int8_t chord_root) {
     bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
 }
 
-static void gen_melody_from_phrase(bar_t *bar, int phrase_idx) {
-    int oct = (rng_range(0, 4) == 0) ? 12 : 0;
+/* Place a phrase on the 8th-note grid (8 slots, step = s*8). */
+static void apply_melody_phrase(bar_t *bar, int phrase_idx, int oct) {
     const int8_t *p = PHRASE_BANK[phrase_idx];
     int s;
     for (s = 0; s < PHRASE_LEN; s++) {
@@ -204,6 +251,32 @@ static void gen_melody_from_phrase(bar_t *bar, int phrase_idx) {
         if (d < 0) continue;
         if (d >= SCALE_LEN) d = (int8_t)(SCALE_LEN - 1);
         bar->melody[s * 8] = (int8_t)(MELODY_BASE_MIDI + KEY_ROOT + SCALE_MAJ_PENT[d] + oct);
+    }
+}
+
+/* Place a minimal-bank phrase. Fixed octave (no RNG) so the loop
+ * stays locked; that's what minimal techno is supposed to feel like. */
+static void apply_melody_minimal(bar_t *bar, int phrase_idx) {
+    const int8_t *p = MINIMAL_BANK[phrase_idx];
+    int s;
+    for (s = 0; s < MINIMAL_LEN; s++) {
+        int8_t d = p[s];
+        if (d < 0) continue;
+        if (d >= SCALE_LEN) d = (int8_t)(SCALE_LEN - 1);
+        bar->melody[s * 8] = (int8_t)(MELODY_BASE_MIDI + KEY_ROOT + SCALE_MAJ_PENT[d]);
+    }
+}
+
+/* Place a 16th-note stab: 16 slots, step = s*4. */
+static void apply_melody_stab(bar_t *bar, int stab_idx) {
+    int oct = (rng_range(0, 9) < 2) ? 12 : 0;
+    const int8_t *p = STAB_BANK[stab_idx];
+    int s;
+    for (s = 0; s < STAB_LEN; s++) {
+        int8_t d = p[s];
+        if (d < 0) continue;
+        if (d >= SCALE_LEN) d = (int8_t)(SCALE_LEN - 1);
+        bar->melody[s * 4] = (int8_t)(MELODY_BASE_MIDI + KEY_ROOT + SCALE_MAJ_PENT[d] + oct);
     }
 }
 
@@ -308,7 +381,10 @@ static void apply_drums_break(bar_t *bar) {
     if (rng_range(0, 1)) bar->drums[52] = (uint8_t)(bar->drums[52] | DRUM_HAT);
 }
 
-static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_idx) {
+/* gen_bar_skeleton fills bass + drums for one bar. Melody and lead2
+ * are applied separately by music_generate so the melody mode can
+ * decide how to pick phrases (fresh per bar, locked loop, etc.). */
+static void gen_bar_skeleton(bar_t *bar, const variation_t *v, int bar_idx) {
     int s;
     int8_t chord_a = v->progression[bar_idx * CHORDS_PER_BAR + 0];
     int8_t chord_b = v->progression[bar_idx * CHORDS_PER_BAR + 1];
@@ -340,15 +416,6 @@ static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_id
         break;
     }
 
-    gen_melody_from_phrase(bar, phrase_idx);
-
-    switch (v->lead2_mode) {
-    case LEAD2_HARMONY: gen_lead2_harmony(bar); break;
-    case LEAD2_FILLS:   gen_lead2_fills(bar);   break;
-    case LEAD2_NONE:
-    default:            break;
-    }
-
     switch (v->drum_pattern) {
     case DRUMS_DANCE:  apply_drums_dance(bar);  break;
     case DRUMS_TECHNO: apply_drums_techno(bar); break;
@@ -358,23 +425,55 @@ static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_id
     }
 }
 
+static void apply_lead2(bar_t *bar, lead2_mode_t mode) {
+    switch (mode) {
+    case LEAD2_HARMONY: gen_lead2_harmony(bar); break;
+    case LEAD2_FILLS:   gen_lead2_fills(bar);   break;
+    case LEAD2_NONE:
+    default:            break;
+    }
+}
+
 void music_generate(bar_t *bars, int num_bars) {
     const variation_t *v = &VARIATIONS[current_variation];
+    int locked_idx = 0;     /* for MINIMAL_LOOP */
+    int locked_pair = 0;    /* for HOOK_2BAR    */
     int b;
     if (num_bars > BARS) num_bars = BARS;
 
-    if (v->phr_mode == PHR_2BAR) {
-        for (b = 0; b < num_bars; b += 2) {
-            int pair_idx = rng_range(0, PHRASE_PAIR_COUNT - 1);
-            gen_bar(&bars[b], v, b, PHRASE_PAIR_BANK[pair_idx][0]);
-            if (b + 1 < num_bars) {
-                gen_bar(&bars[b + 1], v, b + 1, PHRASE_PAIR_BANK[pair_idx][1]);
-            }
+    /* Pre-pick the locked indices for "repeat one thing" modes. Done
+     * up front so the RNG consumption is a known shape regardless of
+     * melody mode, keeping bass/drum RNG comparable across switches. */
+    if (v->melody_mode == MEL_MINIMAL_LOOP) {
+        locked_idx = rng_range(0, MINIMAL_COUNT - 1);
+    } else if (v->melody_mode == MEL_HOOK_2BAR) {
+        locked_pair = rng_range(0, PHRASE_PAIR_COUNT - 1);
+    }
+
+    for (b = 0; b < num_bars; b++) {
+        gen_bar_skeleton(&bars[b], v, b);
+
+        switch (v->melody_mode) {
+        case MEL_MINIMAL_LOOP:
+            apply_melody_minimal(&bars[b], locked_idx);
+            break;
+        case MEL_STAB_16TH:
+            apply_melody_stab(&bars[b], rng_range(0, STAB_COUNT - 1));
+            break;
+        case MEL_HOOK_2BAR: {
+            int oct = 0;    /* locked — keep the hook identical every pass */
+            int idx = PHRASE_PAIR_BANK[locked_pair][b % 2];
+            apply_melody_phrase(&bars[b], idx, oct);
+            break;
         }
-    } else {
-        for (b = 0; b < num_bars; b++) {
-            int phrase_idx = rng_range(0, PHRASE_COUNT - 1);
-            gen_bar(&bars[b], v, b, phrase_idx);
+        case MEL_FRESH_PHRASE:
+        default: {
+            int oct = (rng_range(0, 4) == 0) ? 12 : 0;
+            apply_melody_phrase(&bars[b], rng_range(0, PHRASE_COUNT - 1), oct);
+            break;
         }
+        }
+
+        apply_lead2(&bars[b], v->lead2_mode);
     }
 }

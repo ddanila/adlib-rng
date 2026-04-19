@@ -76,18 +76,16 @@ Keys while playing (RNG re-seeds on every switch, so only the
 variation itself changes — clean A/B):
 
 - `ESC` — quit
-- `1` — `techno` — minimal techno: 4-on-the-floor kick + off-beat
-  hats only (no snare/clap), root-only bass, no second voice. Space
-  is the signature.
-- `2` — `dnb` — drum & bass: breakbeat drums (syncopated kicks, snare
-  on 2/4 with ghosts, 16th ghost hats), rolling 16th sub-bass,
-  octave-up harmony voice for energy.
-- `3` — `daft` — Daft Punk / French-house: octave-pumping bass (root
-  and octave alternating on 8ths), house drums (kick every beat +
-  clap on 2/4), 2-bar phrase pairs doubled an octave up (locked-loop
-  feel).
-- `4` — `90s+fills` — reference from the previous round: rolling bass
-  + dance drums + 16th-note ornamental fills between phrase notes.
+- `1` — `techno` — minimal: 4-on-floor + off-beat hats only, root
+  bass, **one sparse motif locked for all 12 bars** (minimal-techno
+  repetition).
+- `2` — `dnb` — breakbeat drums + rolling 16th sub-bass, **16th-note
+  stab phrases** (separate bank, fresh per bar) + octave harmony.
+- `3` — `daft` — octave-pump bass + house drums, **one 2-bar hook
+  pair locked for the whole 12-bar loop** + octave harmony (Daft
+  Punk's locked-loop signature).
+- `4` — `90s+fills` — reference: rolling bass + dance drums + fresh
+  1-bar phrase from the main bank + 16th ornaments on channel 2.
   Kept as the anchor to compare the new genre experiments against.
 
 All progressions are `I-III-IV-V` (A - C# - D - E) — all-major, no vi.

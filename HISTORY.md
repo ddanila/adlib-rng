@@ -113,6 +113,31 @@ Phrase bank grew 8 → 16 entries (denser/more varied shapes).
   3. `daft` — `DRUMS_DANCE` + `BASS_PUMP` + 2-bar phrases + harmony
   4. `90s+fills` — unchanged reference
 
+## Round 8 — melody goes per-genre
+
+- **User**: "the main melody for the solo instrument is basically
+  very similar for all of those. why?"
+- **Why it was**: all variations called the same
+  `gen_melody_from_phrase` against the same 16-entry `PHRASE_BANK`
+  on the same 8th-note grid in the same A-pent range. Variations
+  only differed in bass / drums / second-voice layer — the solo line
+  itself was style-blind.
+- **Fix**: introduce `melody_mode_t` on the variation and give each
+  genre its own strategy. `gen_bar` split into a skeleton
+  (bass + drums) + separate melody + lead2 passes so music_generate
+  can drive the melody mode from the top.
+  - `MEL_MINIMAL_LOOP` (techno) — pick ONE phrase from a new
+    `MINIMAL_BANK` (6 sparse phrases, 1-3 notes each) at the top of
+    the loop, reuse for all 12 bars.
+  - `MEL_STAB_16TH` (dnb) — separate `STAB_BANK` of 16-slot
+    phrases on the 16th-note grid (step = s*4). Fresh per bar.
+  - `MEL_HOOK_2BAR` (daft) — pick ONE pair from
+    `PHRASE_PAIR_BANK` and lock it across all six pair-slots in the
+    12-bar loop.
+  - `MEL_FRESH_PHRASE` (ref) — unchanged, current 16-entry bank
+    fresh per bar.
+- `phr_mode` / `PHR_*` dropped — subsumed by `melody_mode`.
+
 ## Invariants that settled along the way
 
 Things that got decided early-ish and haven't moved since:
