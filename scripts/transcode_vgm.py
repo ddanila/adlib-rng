@@ -244,13 +244,17 @@ def analyze(data: bytes, data_offset: int,
             result.legato[ch] = True
 
     if result.tl_pooled:
-        n = len(result.tl_pooled)
-        result.tl_clamp = result.tl_pooled[n // 2]   # median
+        # Clamp at min(TL) + 10 — tight enough to pull up the quiet half
+        # by ~12 dB while the loud peaks (~8 dB quieter than min + 10 or
+        # better) stay untouched. Matches the manual boost the listener
+        # found necessary to hear the background layer.
+        result.tl_clamp = min(result.tl_pooled) + 10
     return result
 
 
 class Transcoder:
     def __init__(self, analysis: Optional[AnalysisResult] = None,
+                 defer_keyoff: bool = True,
                  trace: bool = False) -> None:
         self.src: List[SrcChannel] = [SrcChannel() for _ in range(18)]
         self.dst_key    = [False] * 9
@@ -267,10 +271,17 @@ class Transcoder:
         self.sample_time = 0
         self.trace = trace
         self.analysis = analysis or AnalysisResult()   # zero-fix default
+        self.defer_keyoff = defer_keyoff
+        # Per-dst: True if the source wanted a key-off on this voice but
+        # we haven't emitted it yet. The 0xBn=0 write gets flushed the
+        # next time the allocator hands this dst to a new key-on, so it
+        # lands adjacent to a note attack instead of in silence (where
+        # OPL2 renders it as a standalone click).
+        self.pending_keyoff = [False] * 9
         self.stats = {
             "key_on": 0, "stolen": 0, "dropped": 0, "p1_mode_hits": 0,
             "writes_kept": 0, "writes_suppressed": 0,
-            "legato_skips": 0,
+            "legato_skips": 0, "keyoffs_deferred": 0, "keyoffs_flushed": 0,
         }
 
     # --- Auto-fix helpers ---------------------------------------- #
@@ -342,9 +353,11 @@ class Transcoder:
         self.log(f"steal dst {victim} from src {prev_owner} for src {src_ch}")
         if prev_owner is not None and self.map.get(prev_owner) == victim:
             del self.map[prev_owner]
-        # Force a key-off edge on the stolen voice so its envelope
-        # releases cleanly before the new note lands on top of it.
+        # A stolen voice already gets its key-off adjacent to the new
+        # note, so there's nothing to defer here — emit immediately and
+        # clear any leftover pending flag.
         self.emit(0xB0 + victim, 0x00)
+        self.pending_keyoff[victim] = False
         self.dst_key[victim]   = False
         self.dst_owner[victim] = None
         return victim
@@ -384,6 +397,13 @@ class Transcoder:
             self.stats["dropped"] += 1
             self.log(f"DROP note on src {src_ch}: no free dst")
             return
+        # If this dst has a key-off we deferred earlier, flush it now
+        # — right before the new key-on — so the chip sees a proper
+        # 1->0->1 edge and the envelope retriggers cleanly.
+        if self.pending_keyoff[dst]:
+            self.emit(0xB0 + dst, 0x00)
+            self.pending_keyoff[dst] = False
+            self.stats["keyoffs_flushed"] += 1
         self.install_patch(dst, src_ch)
         # Key-on MUST always emit — the envelope needs the rising edge
         # even when fnum_hi happens to match what's already in the reg.
@@ -401,7 +421,14 @@ class Transcoder:
         dst = self.map.get(src_ch)
         if dst is None:
             return
-        self.emit_maybe(0xB0 + dst, self.src[src_ch].fnum_hi & 0x1F)
+        if self.defer_keyoff:
+            # Don't emit 0xBn=0 to the chip now; just book it for the
+            # next time something takes over this dst. Free the voice
+            # in the allocator, unmap the source.
+            self.pending_keyoff[dst] = True
+            self.stats["keyoffs_deferred"] += 1
+        else:
+            self.emit_maybe(0xB0 + dst, self.src[src_ch].fnum_hi & 0x1F)
         self.dst_key[dst] = False
         del self.map[src_ch]
 
@@ -570,6 +597,7 @@ def main() -> int:
     raw   = False
     want_legato = False
     no_clamp    = False
+    no_defer    = False
     while args and args[0].startswith("--"):
         flag = args.pop(0)
         if flag == "--trace":
@@ -580,6 +608,8 @@ def main() -> int:
             want_legato = True
         elif flag == "--no-clamp":
             no_clamp = True
+        elif flag == "--no-defer-keyoff":
+            no_defer = True
         else:
             print(f"unknown flag: {flag}", file=sys.stderr)
             return 2
@@ -638,7 +668,9 @@ def main() -> int:
             print("  legato: off (use --legato to opt in; "
                   "expect articulation to flatten)")
 
-    t = Transcoder(analysis=analysis, trace=trace)
+    t = Transcoder(analysis=analysis,
+                   defer_keyoff=not (raw or no_defer),
+                   trace=trace)
     total_samples = 0
     for ev in parse_commands(data, hdr.data_offset):
         kind = ev[0]
@@ -665,6 +697,9 @@ def main() -> int:
     print(f"  dropped      : {t.stats['dropped']}")
     print(f"  p1 mode regs : {t.stats['p1_mode_hits']} (silently skipped)")
     print(f"  legato skips : {t.stats['legato_skips']}")
+    if t.defer_keyoff:
+        print(f"  keyoff defer : {t.stats['keyoffs_deferred']} deferred, "
+              f"{t.stats['keyoffs_flushed']} flushed at next key-on")
     total_w = t.stats['writes_kept'] + t.stats['writes_suppressed']
     if total_w:
         pct = 100 * t.stats['writes_suppressed'] / total_w
