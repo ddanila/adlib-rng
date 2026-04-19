@@ -8,6 +8,7 @@
 #include "rng.h"
 #include "music.h"
 #include "display.h"
+#include "seeds.h"
 
 #define MELODY_CH  0
 #define BASS_CH    1
@@ -126,6 +127,25 @@ int main(int argc, char **argv) {
                      * that changes between variations is the variation
                      * itself, not the random draws. */
                     music_set_variation(v);
+                    regenerate();
+                    silence_all();
+                    cur_bar       = 0;
+                    cur_step      = 0;
+                    total_steps   = 1;
+                    loop_start_ms = timer_ms();
+                    display_init(seed);
+                    play_step(cur_bar, cur_step);
+                    display_frame(cur_bar, cur_step, &bars[cur_bar]);
+                }
+            } else {
+                int sidx = -1;
+                if (k >= 'a' && k <= 'a' + SEED_COUNT - 1) sidx = k - 'a';
+                if (k >= 'A' && k <= 'A' + SEED_COUNT - 1) sidx = k - 'A';
+                if (sidx >= 0 && SEED_BANK[sidx] != seed) {
+                    /* Swap seed and regenerate with the current variation
+                     * intact — lets the user A/B seeds without changing
+                     * style. */
+                    seed = SEED_BANK[sidx];
                     regenerate();
                     silence_all();
                     cur_bar       = 0;

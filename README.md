@@ -76,6 +76,10 @@ Keys while playing (RNG re-seeds on every switch, so only the
 variation itself changes — clean A/B):
 
 - `ESC` — quit
+- `a`-`f` — swap the RNG seed to one of six predefined values
+  (`0x1337`, `42`, `0xDEADBEEF`, `0xCAFEBABE`, `0xBADC0DE`, `0x8086`)
+  and regenerate with the current variation still selected. Lets you
+  A/B seeds without changing style.
 All three "daft" variations share the same bass (octave pump), drums
 (house), melody mode (locked 2-bar hook with arch-shape octave lift),
 and harmony (octave up). Only the **progression** changes — so you

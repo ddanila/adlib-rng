@@ -28,7 +28,7 @@ WATCOM_LIB = $(WATCOM_DIR)/lib286/dos
 # -oi   = inline intrinsics (memset/memcpy)
 WCCFLAGS = -0 -ms -os -s -za99 -w4 -we -oi -i=$(WATCOM_H)
 
-SRC     = src/main.c src/opl2.c src/timer.c src/rng.c src/music.c src/display.c
+SRC     = src/main.c src/opl2.c src/timer.c src/rng.c src/music.c src/display.c src/seeds.c
 OBJ     = $(SRC:src/%.c=build/%.obj)
 HEADERS = $(wildcard src/*.h)
 EXE     = build/adlib.exe

@@ -1,4 +1,5 @@
 #include "display.h"
+#include "seeds.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -142,7 +143,22 @@ void display_init(uint32_t seed) {
     vga_puts(18, 2, ATTR_NORMAL, "120 BPM, 64 substeps/bar, 12 bars then loop forever");
     vga_puts(19, 2, ATTR_NORMAL, "Drums via OPL2 rhythm mode. Pattern varies per variation.");
 
-    vga_puts(24, 0, ATTR_LABEL, "ESC: quit    1-4: variation");
+    /* Seed bank — letter-bound quick picks. Highlight whichever one
+     * matches the currently-active seed (if any). */
+    {
+        int col = 7;
+        int j;
+        vga_puts(21, 0, ATTR_LABEL, "Seeds:");
+        for (j = 0; j < SEED_COUNT; j++) {
+            unsigned char a  = (SEED_BANK[j] == seed) ? ATTR_CURBAR : ATTR_NORMAL;
+            unsigned char ab = (SEED_BANK[j] == seed) ? ATTR_CURBAR : ATTR_LABEL;
+            vga_printf(21, col,     ab, "[%c]", 'a' + j);
+            vga_printf(21, col + 3, a,  "%s ", SEED_LABEL[j]);
+            col += 3 + (int)strlen(SEED_LABEL[j]) + 2;
+        }
+    }
+
+    vga_puts(24, 0, ATTR_LABEL, "ESC: quit    1-4: variation    a-f: seed");
 }
 
 static void draw_step_grid(int cur_step, const bar_t *bar) {

@@ -177,6 +177,21 @@ Phrase bank grew 8 → 16 entries (denser/more varied shapes).
   - V3 `daft`       — daft + `PROG_MAJ4` (unchanged)
   - V4 `90s+fills`  — unchanged reference
 
+## Round 11 — seed bank on keys a-f
+
+- **User**: "I wanna play around 1 with different seeds. Let's add a
+  list of predefined seeds controlled by a-b-c-d-e-f, 1337, 42 and
+  some other fun numbers at your choice".
+- Added `src/seeds.{h,c}` with a 6-entry curated bank:
+  - `a` = `0x1337`, `b` = `42`, `c` = `0xDEADBEEF`,
+    `d` = `0xCAFEBABE`, `e` = `0xBADC0DE`, `f` = `0x8086`.
+- Key handler in `main.c` catches a-f (case-insensitive), swaps the
+  global seed, regenerates with the current variation still active,
+  and restarts playback from bar 0. Orthogonal to 1-4 — you can
+  A/B seeds without changing style.
+- Display got a new "Seeds:" row (line 21) listing all six bindings
+  with the active one highlighted.
+
 ## Invariants that settled along the way
 
 Things that got decided early-ish and haven't moved since:
