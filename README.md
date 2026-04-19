@@ -76,23 +76,27 @@ Keys while playing (RNG re-seeds on every switch, so only the
 variation itself changes — clean A/B):
 
 - `ESC` — quit
-- `1` — `blues+phr` — phrase-bank melody over 12-bar blues
-  (`I-IV-V`), root bass
-- `2` — `50s+phr` — same melody style over the `I-vi-IV-V` doo-wop
-  progression, root bass
-- `3` — `50s+walk` — as **2**, but bass walks (root → chord tone)
-  on every half-bar for more motion
-- `4` — `50s+2bar` — as **2**, but melody picks 2-bar phrase *pairs*
-  (statement → answer) instead of independent per-bar phrases, for
-  multi-bar arcs
+- `1` — `90s+phr` — rolling 16th-note bass + 4-on-the-floor dance
+  drums (late-90s DnB / big-beat shape, Aphrodite-ish at our tempo),
+  1-bar phrase melody, `I-III-IV-V`
+- `2` — `90s+2bar` — same dance drums + rolling bass as **1**, but
+  the melody draws 2-bar phrase *pairs* (statement → answer)
+- `3` — `maj+walk` — rock drums + walking bass (root → A-pent note
+  on every half-bar) + 1-bar phrase melody, `I-III-IV-V`
+- `4` — `maj+2bar` — rock drums + root bass + 2-bar phrase pairs,
+  `I-III-IV-V`
+
+All progressions are `I-III-IV-V` (A - C# - D - E) — all-major, no vi.
 
 ## What you'll hear
 
-Key is A major (pentatonic throughout — the 4th and 7th degrees got
-cut for sounding too modal). Harmony is one of two progressions at
-half-bar resolution depending on variation: the 12-bar blues (looped
-twice) or the `I-vi-IV-V` "50s pop" cycle (looped six times). Melody
-is key-anchored, so the solo stays in key over every chord.
+Key is A major, pentatonic only. Harmony across all variations is
+`I-III-IV-V` (A - C# - D - E, all-major) at half-bar resolution —
+the 4-chord cycle spans 2 bars and loops six times per 12-bar round.
+Melody is key-anchored, so it always stays in A pentatonic.
+Variations differ on drums (rock vs 4-on-the-floor), bass (root /
+walking / rolling 16ths) and melody granularity (per-bar phrases vs
+2-bar phrase pairs).
 Drums hit a basic kick / snare / hat pattern with a sprinkle of
 RNG-driven extra kicks. Tempo is fixed at 120 BPM, 64 substeps/bar.
 

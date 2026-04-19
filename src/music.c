@@ -2,35 +2,26 @@
 #include "rng.h"
 #include <string.h>
 
-/* A major pentatonic: semitone offsets from the tonic.
- * We only ever use the pentatonic now — the full major scale sounded
- * too modal because of the 4th and 7th degrees. */
+/* A major pentatonic — the only scale in use. */
 static const int8_t SCALE_MAJ_PENT[] = { 0, 2, 4, 7, 9 };
 #define SCALE_LEN 5
 
 #define PROG_LEN (BARS * CHORDS_PER_BAR)
 
-/* Standard 12-bar blues compressed to 6 bars (each chord = half a
- * bar) and looped twice — 24 chord changes total. Half-bar layout:
- *   I  I | I  I | IV IV | I  I | V  IV | I  V    (× 2)
- */
-static const int8_t PROG_BLUES[PROG_LEN] = {
-    0, 0,  0, 0,  5, 5,  0, 0,  7, 5,  0, 7,
-    0, 0,  0, 0,  5, 5,  0, 0,  7, 5,  0, 7
-};
-
-/* "50s pop" I-vi-IV-V: A → F#m → D → E. One chord per half-bar so the
- * 4-chord cycle spans 2 bars; repeats six times across 12 bars. */
-static const int8_t PROG_50S[PROG_LEN] = {
-    0, 9,  5, 7,   0, 9,  5, 7,   0, 9,  5, 7,
-    0, 9,  5, 7,   0, 9,  5, 7,   0, 9,  5, 7
+/* All-major progression in A: I-III-IV-V (A - C# - D - E). Replaces
+ * the earlier I-vi-IV-V, whose vi (F#m) implied a minor chord the
+ * ear kept hearing under the A-pent melody. I-III-IV-V keeps the
+ * same rising/resolving shape with zero minor implication. One chord
+ * per half-bar so the 4-chord cycle spans 2 bars; repeats six times
+ * across the 12-bar window. */
+static const int8_t PROG_MAJ4[PROG_LEN] = {
+    0, 4,  5, 7,   0, 4,  5, 7,   0, 4,  5, 7,
+    0, 4,  5, 7,   0, 4,  5, 7,   0, 4,  5, 7
 };
 
 /* Melody phrase bank. Each phrase is 8 eighth-note slots holding
- * scale-degree indices (0..SCALE_LEN-1) or -1 for a rest. With the
- * pentatonic (5 degrees) the indices 0..4 map to root, 2, 3, 5, 6.
- * Mix of sparse/dense and ascending/descending to give the RNG real
- * options. */
+ * scale-degree indices (0..SCALE_LEN-1) or -1 for a rest. Mix of
+ * sparse/dense and ascending/descending to give the RNG real options. */
 #define PHRASE_LEN   8
 #define PHRASE_COUNT 16
 static const int8_t PHRASE_BANK[PHRASE_COUNT][PHRASE_LEN] = {
@@ -56,41 +47,43 @@ static const int8_t PHRASE_BANK[PHRASE_COUNT][PHRASE_LEN] = {
  * forms a musical sentence (statement → answer, ascend → descend). */
 #define PHRASE_PAIR_COUNT 8
 static const int8_t PHRASE_PAIR_BANK[PHRASE_PAIR_COUNT][2] = {
-    { 0,  2 },   /* call → arch                   */
-    { 1,  4 },   /* ascend → descending run       */
-    { 6,  7 },   /* stepwise → lazy answer        */
-    { 8,  9 },   /* dense arp → run up+down       */
-    { 10, 14 },  /* rolling → call-and-taper      */
-    { 11, 12 },  /* stutter → wavey descent       */
-    { 3,  5 },   /* sparse → jumpy answer         */
-    { 13, 4  }   /* bounce → descending resolution*/
+    { 0,  2 },   /* call → arch                    */
+    { 1,  4 },   /* ascend → descending run        */
+    { 6,  7 },   /* stepwise → lazy answer         */
+    { 8,  9 },   /* dense arp → run up+down        */
+    { 10, 14 },  /* rolling → call-and-taper       */
+    { 11, 12 },  /* stutter → wavey descent        */
+    { 3,  5 },   /* sparse → jumpy answer          */
+    { 13, 4  }   /* bounce → descending resolution */
 };
 
-typedef enum { BASS_ROOTS = 0, BASS_WALKING = 1 } bass_mode_t;
-typedef enum { PHR_BAR   = 0, PHR_2BAR      = 1 } phrase_mode_t;
+typedef enum { BASS_ROOTS = 0, BASS_WALKING = 1, BASS_ROLLING = 2 } bass_mode_t;
+typedef enum { PHR_BAR   = 0, PHR_2BAR      = 1 }                   phrase_mode_t;
+typedef enum { DRUMS_ROCK = 0, DRUMS_DANCE  = 1 }                   drum_pattern_t;
 
 typedef struct {
-    const char   *name;
-    const int8_t *progression;
-    phrase_mode_t phr_mode;
-    bass_mode_t   bass_mode;
+    const char    *name;
+    const int8_t  *progression;
+    phrase_mode_t  phr_mode;
+    bass_mode_t    bass_mode;
+    drum_pattern_t drum_pattern;
 } variation_t;
 
-/* V1-V2 are the survivors of the last listening session (both used
- * phrases on pentatonic); V3-V4 are new experiments that vary one
- * dimension each vs V2. */
+/* V1-V2 are the 90s-electronic slots (rolling bass + 4-on-the-floor);
+ * V3-V4 keep the rock-flavoured walking/2bar variants with the new
+ * all-major progression. */
 static const variation_t VARIATIONS[NUM_VARIATIONS] = {
-    { "blues+phr",  PROG_BLUES, PHR_BAR,  BASS_ROOTS   },
-    { "50s+phr",    PROG_50S,   PHR_BAR,  BASS_ROOTS   },
-    { "50s+walk",   PROG_50S,   PHR_BAR,  BASS_WALKING },
-    { "50s+2bar",   PROG_50S,   PHR_2BAR, BASS_ROOTS   }
+    { "90s+phr",   PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE },
+    { "90s+2bar",  PROG_MAJ4, PHR_2BAR, BASS_ROLLING, DRUMS_DANCE },
+    { "maj+walk",  PROG_MAJ4, PHR_BAR,  BASS_WALKING, DRUMS_ROCK  },
+    { "maj+2bar",  PROG_MAJ4, PHR_2BAR, BASS_ROOTS,   DRUMS_ROCK  }
 };
 
 static const char *VARIATION_DESC[NUM_VARIATIONS] = {
-    "phrase-bank melody over 12-bar blues (I-IV-V), root bass",
-    "phrase-bank melody over I-vi-IV-V 50s pop, root bass",
-    "50s pop, bass walks root -> A-pent note every half-bar",
-    "50s pop, melody draws 2-bar phrase pairs (call+answer)"
+    "I-III-IV-V, rolling 16th bass + 4-on-floor, phrase melody",
+    "I-III-IV-V, rolling 16th bass + 4-on-floor, 2-bar phrase pairs",
+    "I-III-IV-V, walking bass + rock drums, phrase melody",
+    "I-III-IV-V, root bass + rock drums, 2-bar phrase pairs"
 };
 
 static int current_variation = 0;
@@ -116,8 +109,7 @@ const char *music_variation_desc(int idx) {
 
 #define BASS_BASE_MIDI    33   /* A1 (≈ 55 Hz) */
 #define MELODY_BASE_MIDI  57   /* A3 */
-/* Melody stays in the key (A) regardless of chord. Only the bass
- * tracks the chord root. */
+/* Melody stays in the key (A) regardless of chord. */
 #define KEY_ROOT          0
 
 static void place_bass(bar_t *bar, int step, int8_t chord_root, int8_t semi) {
@@ -125,7 +117,7 @@ static void place_bass(bar_t *bar, int step, int8_t chord_root, int8_t semi) {
 }
 
 static void gen_chord_half_roots(bar_t *bar, int half, int8_t chord_root) {
-    int base = half * STEPS_PER_CHORD;   /* 0 or 32 */
+    int base = half * STEPS_PER_CHORD;
     int mid  = base + STEPS_PER_CHORD / 2;
 
     place_bass(bar, base, chord_root, 0);
@@ -135,16 +127,9 @@ static void gen_chord_half_roots(bar_t *bar, int half, int8_t chord_root) {
     bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
 }
 
-/* Walking bass: root on the down-beat, a key-safe passing tone on
- * the back-beat. The earlier version used fixed intervals (+4, +7,
- * +9 = major 3rd/5th/6th), which assumed every chord was major. The
- * 50s progression has vi (F#m) in it, and +4 / +9 over F# landed on
- * A# / D# — both outside A major pentatonic — so 2 of 3 walking
- * notes on that chord were out of tune. We now pick the offset so
- * the walking note is always in A pentatonic, regardless of the
- * chord's quality. */
+/* Pick a pentatonic-safe walking offset above the chord root — works
+ * regardless of chord quality (see the commit that introduced this). */
 static int8_t pick_pent_walk_offset(int8_t chord_root) {
-    /* A pentatonic spread over two octaves (semitones from A). */
     static const int8_t PENT_SEMIS[] = { 0, 2, 4, 7, 9, 12, 14, 16, 19, 21 };
     int8_t root_mod = (int8_t)(chord_root % 12);
     int8_t offs[6];
@@ -153,7 +138,7 @@ static int8_t pick_pent_walk_offset(int8_t chord_root) {
         int8_t d = (int8_t)(PENT_SEMIS[i] - root_mod);
         if (d > 0 && d <= 12 && n < 6) offs[n++] = d;
     }
-    if (n == 0) return 7;   /* fallback: perfect fifth (always safe) */
+    if (n == 0) return 7;
     return offs[rng_range(0, n - 1)];
 }
 
@@ -164,6 +149,19 @@ static void gen_chord_half_walking(bar_t *bar, int half, int8_t chord_root) {
 
     place_bass(bar, base, chord_root, 0);
     place_bass(bar, mid,  chord_root, walk);
+    bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
+}
+
+/* Rolling 16th-note bass: hit the chord root every 4 steps, with an
+ * occasional octave bump for movement. That's 8 hits per half-bar,
+ * 16 per bar — the rolling sub-bass figure of late-90s DnB / big beat. */
+static void gen_chord_half_rolling(bar_t *bar, int half, int8_t chord_root) {
+    int base = half * STEPS_PER_CHORD;
+    int i;
+    for (i = 0; i < STEPS_PER_CHORD; i += 4) {
+        int8_t oct = (rng_range(0, 9) == 0) ? 12 : 0;   /* 10% octave up */
+        place_bass(bar, base + i, chord_root, oct);
+    }
     bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
 }
 
@@ -179,6 +177,37 @@ static void gen_melody_from_phrase(bar_t *bar, int phrase_idx) {
     }
 }
 
+static void apply_drums_rock(bar_t *bar) {
+    int s;
+    /* Classic rock beat: kick on 1 & 3, snare on 2 & 4, hats on 8ths,
+     * sprinkled ghost kicks. */
+    bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
+    bar->drums[32] = (uint8_t)(bar->drums[32] | DRUM_KICK);
+    bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_SNARE);
+    bar->drums[48] = (uint8_t)(bar->drums[48] | DRUM_SNARE);
+    for (s = 0; s < STEPS_PER_BAR; s += 8) {
+        bar->drums[s] = (uint8_t)(bar->drums[s] | DRUM_HAT);
+    }
+    if (rng_range(0, 9) < 3) bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_KICK);
+    if (rng_range(0, 9) < 3) bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_KICK);
+}
+
+static void apply_drums_dance(bar_t *bar) {
+    /* 4-on-the-floor kick, clap/snare on 2 & 4, open hats on every
+     * "and" (off-beat 8ths) — the classic house / big-beat shape. */
+    bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
+    bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_KICK | DRUM_SNARE);
+    bar->drums[32] = (uint8_t)(bar->drums[32] | DRUM_KICK);
+    bar->drums[48] = (uint8_t)(bar->drums[48] | DRUM_KICK | DRUM_SNARE);
+    bar->drums[8]  = (uint8_t)(bar->drums[8]  | DRUM_HAT);
+    bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_HAT);
+    bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_HAT);
+    bar->drums[56] = (uint8_t)(bar->drums[56] | DRUM_HAT);
+    /* Occasional ghost hat on a 16th for some hyperactivity */
+    if (rng_range(0, 9) < 3) bar->drums[4]  = (uint8_t)(bar->drums[4]  | DRUM_HAT);
+    if (rng_range(0, 9) < 3) bar->drums[36] = (uint8_t)(bar->drums[36] | DRUM_HAT);
+}
+
 static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_idx) {
     int s;
     int8_t chord_a = v->progression[bar_idx * CHORDS_PER_BAR + 0];
@@ -190,27 +219,29 @@ static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_id
         bar->bass[s]   = -1;
     }
 
-    if (v->bass_mode == BASS_WALKING) {
+    switch (v->bass_mode) {
+    case BASS_WALKING:
         gen_chord_half_walking(bar, 0, chord_a);
         gen_chord_half_walking(bar, 1, chord_b);
-    } else {
+        break;
+    case BASS_ROLLING:
+        gen_chord_half_rolling(bar, 0, chord_a);
+        gen_chord_half_rolling(bar, 1, chord_b);
+        break;
+    case BASS_ROOTS:
+    default:
         gen_chord_half_roots(bar, 0, chord_a);
         gen_chord_half_roots(bar, 1, chord_b);
+        break;
     }
 
     gen_melody_from_phrase(bar, phrase_idx);
 
-    /* Drums: kick on 1 & 3, snare on 2 & 4, hihat on 8ths, sprinkled
-     * ghost kicks for variation. */
-    bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
-    bar->drums[32] = (uint8_t)(bar->drums[32] | DRUM_KICK);
-    bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_SNARE);
-    bar->drums[48] = (uint8_t)(bar->drums[48] | DRUM_SNARE);
-    for (s = 0; s < STEPS_PER_BAR; s += 8) {
-        bar->drums[s] = (uint8_t)(bar->drums[s] | DRUM_HAT);
+    if (v->drum_pattern == DRUMS_DANCE) {
+        apply_drums_dance(bar);
+    } else {
+        apply_drums_rock(bar);
     }
-    if (rng_range(0, 9) < 3) bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_KICK);
-    if (rng_range(0, 9) < 3) bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_KICK);
 }
 
 void music_generate(bar_t *bars, int num_bars) {
