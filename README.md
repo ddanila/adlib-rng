@@ -41,16 +41,13 @@ Host tools (macOS or Linux):
   bootable DOS floppy image without mounting anything.
 - **qemu-system-i386** — emulates the PC and its OPL2.
 
-Plus a bootable **MS-DOS 4.0 floppy image**. The Makefile expects
-`FLOPPY_SRC` to point at one. Default:
-`~/fun/msdos/out/floppy.img` (built from the
-[ddanila/msdos](https://github.com/ddanila/msdos) project — run
-`make minimal-floppy` there).
-
-Override:
+Plus a bootable **MS-DOS 4.0 floppy image**. By default `make floppy`
+fetches `floppy-minimal.img` from the latest
+[ddanila/msdos release](https://github.com/ddanila/msdos/releases) via
+`gh` and caches it under `build/dos/`. Override to use your own image:
 
 ```sh
-make floppy FLOPPY_SRC=/path/to/dos4.img
+make floppy FLOPPY_SRC=/path/to/dos.img
 ```
 
 ## Build

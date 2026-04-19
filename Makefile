@@ -32,15 +32,19 @@ SRC = src/main.c src/opl2.c src/timer.c src/rng.c src/music.c src/display.c
 OBJ = $(SRC:src/%.c=build/%.obj)
 EXE = build/adlib.exe
 
-FLOPPY_SRC ?= $(HOME)/fun/msdos/out/floppy.img
-FLOPPY_OUT  = build/adlib.img
+# Bootable MS-DOS 4.0 floppy. Pulled as a release asset from the
+# ddanila/msdos project. Override FLOPPY_SRC to use your own image.
+MSDOS_RELEASE   ?= 0.1
+MSDOS_FLOPPY    ?= floppy-minimal.img
+FLOPPY_SRC      ?= build/dos/$(MSDOS_FLOPPY)
+FLOPPY_OUT       = build/adlib.img
 
-.PHONY: all clean run floppy check-floppy-src
+.PHONY: all clean run floppy fetch-floppy
 
 all: $(EXE)
 
 build:
-	@mkdir -p build
+	@mkdir -p build build/dos
 
 build/%.obj: src/%.c | build
 	$(WCC) $(WCCFLAGS) -fo=$@ $<
@@ -48,23 +52,22 @@ build/%.obj: src/%.c | build
 $(EXE): $(OBJ)
 	$(WLINK) name $@ format dos $(addprefix file ,$(OBJ)) libpath $(WATCOM_LIB) library clibs.lib
 
-check-floppy-src:
-	@if [ ! -f "$(FLOPPY_SRC)" ]; then \
-	  echo ""; \
-	  echo "ERROR: MS-DOS floppy not found at $(FLOPPY_SRC)"; \
-	  echo ""; \
-	  echo "Build it first in the ddanila/msdos checkout, e.g.:"; \
-	  echo "    cd ~/fun/msdos && make minimal-floppy"; \
-	  echo ""; \
-	  echo "Or override the source path:"; \
-	  echo "    make floppy FLOPPY_SRC=/path/to/dos4.img"; \
-	  echo ""; \
+fetch-floppy: $(FLOPPY_SRC)
+
+# Cached download from the ddanila/msdos release. Re-run with
+# `rm -rf build/dos` if you want to refetch.
+build/dos/$(MSDOS_FLOPPY): | build
+	@if ! command -v gh >/dev/null 2>&1; then \
+	  echo "ERROR: gh CLI not found. Install it (brew install gh) or set FLOPPY_SRC=/path/to/img."; \
 	  exit 1; \
 	fi
+	@echo "Fetching $(MSDOS_FLOPPY) from ddanila/msdos@$(MSDOS_RELEASE)..."
+	@mkdir -p build/dos
+	gh release download $(MSDOS_RELEASE) --repo ddanila/msdos --pattern $(MSDOS_FLOPPY) --dir build/dos --clobber
 
 floppy: $(FLOPPY_OUT)
 
-$(FLOPPY_OUT): $(EXE) check-floppy-src
+$(FLOPPY_OUT): $(EXE) $(FLOPPY_SRC)
 	cp "$(FLOPPY_SRC)" $@
 	mcopy -i $@ -o $(EXE) ::ADLIB.EXE
 	@printf '@ECHO OFF\r\nADLIB\r\n' > build/AUTOEXEC.BAT
