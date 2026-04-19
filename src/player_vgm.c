@@ -111,11 +111,15 @@ enum {
     EXP_SOFT_ATTACK,   /* a) subtract 2 from AR on every 0x60-0x75 write —
                           softens the envelope ramp-up, which is one
                           suspect for the attack-edge click.            */
-    EXP_SILENT_23,     /* b) swallow key-off writes on dst 2 and 3 only —
-                          per-dst surgical version of knob [3].         */
+    EXP_AUTO_BASS,     /* b) auto: swallow any key-off whose block field
+                          is < 3 (below ~130 Hz). Clicks on OPL2 show
+                          up only on bass-range notes, so this targets
+                          the fix where it's needed and leaves every
+                          higher-pitched release fade intact.           */
     EXP_N
 };
 static int g_k_experiment = EXP_OFF;
+#define BASS_BLOCK_LT   3
 
 /* ------------------------------------------------------------------ *
  *  OPL register-geometry helpers.                                    *
@@ -312,13 +316,15 @@ static void stream_write(uint8_t reg, uint8_t val) {
         ar = (ar >= 2) ? (uint8_t)(ar - 2) : 0;
         out = (uint8_t)((ar << 4) | dr);
     }
-    if (g_k_experiment == EXP_SILENT_23 &&
-        reg >= 0xB0 && reg <= 0xB8) {
-        int ch = reg - 0xB0;
-        if ((ch == 2 || ch == 3) && !(out & 0x20)) {
-            /* Swallow the key-off on exactly the two dsts the listener
-             * reports as click-prone. Track the intent in the shadow
-             * so the HUD stays honest. */
+    if (g_k_experiment == EXP_AUTO_BASS &&
+        reg >= 0xB0 && reg <= 0xB8 && !(out & 0x20)) {
+        /* The key-off write carries the same block bits as the preceding
+         * key-on did (the transcoder's do_note_off masks out only the
+         * key bit, see src/transcode_vgm.py). So we can tell *per-note*
+         * whether this is a bass-range release — no need to know which
+         * dst is carrying what. Only the bass ones click on OPL2. */
+        int block = (out >> 2) & 0x07;
+        if (block < BASS_BLOCK_LT) {
             update_shadow(reg, out);
             MARK_REG(reg);
             g_writes++;
@@ -442,9 +448,9 @@ static void draw_knobs(void) {
     {
         const char *exp;
         switch (g_k_experiment) {
-        case EXP_SOFT_ATTACK: exp = "soft attack"; break;
-        case EXP_SILENT_23:   exp = "silent 2-3 "; break;
-        default:              exp = "off        "; break;
+        case EXP_SOFT_ATTACK: exp = "soft attack "; break;
+        case EXP_AUTO_BASS:   exp = "mute bass kf"; break;
+        default:              exp = "off         "; break;
         }
         display_vga_printf(24, 30, ATTR_KNOB, "[6] exp: %s", exp);
     }
