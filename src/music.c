@@ -473,9 +473,9 @@ static void apply_lead2(bar_t *bar, lead2_mode_t mode) {
 
 void music_generate(bar_t *bars, int num_bars) {
     const variation_t *v = &VARIATIONS[current_variation];
-    int locked_idx_a = 0;   /* for MINIMAL_LOOP — "A" phrase         */
-    int locked_idx_b = 0;   /* for MINIMAL_LOOP — "B" phrase (AABB)  */
-    int locked_pair  = 0;   /* for HOOK_2BAR                         */
+    int locked_idx_a   = 0;   /* for MINIMAL_LOOP — "A" phrase */
+    int locked_idx_b   = 0;   /* for MINIMAL_LOOP — "B" phrase */
+    int hook_pair[3]   = {0, 0, 0};  /* for HOOK_2BAR — ABC cycle */
     int b;
     if (num_bars > BARS) num_bars = BARS;
 
@@ -486,7 +486,16 @@ void music_generate(bar_t *bars, int num_bars) {
         locked_idx_a = rng_range(0, MINIMAL_COUNT - 1);
         locked_idx_b = rng_range(0, MINIMAL_COUNT - 1);
     } else if (v->melody_mode == MEL_HOOK_2BAR) {
-        locked_pair = rng_range(0, PHRASE_PAIR_COUNT - 1);
+        /* Pick three *distinct* pairs and cycle ABCABC across the six
+         * pair-slots in the 12-bar loop. That's three melodic ideas
+         * per seed instead of one, so different seeds land on very
+         * different material — but each idea still plays twice, so
+         * the locked-loop feel survives. */
+        hook_pair[0] = rng_range(0, PHRASE_PAIR_COUNT - 1);
+        do { hook_pair[1] = rng_range(0, PHRASE_PAIR_COUNT - 1); }
+            while (hook_pair[1] == hook_pair[0]);
+        do { hook_pair[2] = rng_range(0, PHRASE_PAIR_COUNT - 1); }
+            while (hook_pair[2] == hook_pair[0] || hook_pair[2] == hook_pair[1]);
     }
 
     for (b = 0; b < num_bars; b++) {
@@ -505,10 +514,11 @@ void music_generate(bar_t *bars, int num_bars) {
             apply_melody_stab(&bars[b], rng_range(0, STAB_COUNT - 1));
             break;
         case MEL_HOOK_2BAR: {
-            /* Arch-shape octave across the loop: base on bars 1-4
-             * and 9-12, +12 lift on bars 5-8. Gives the locked hook
-             * a "bridge" moment without breaking the loop feel. */
-            int idx = PHRASE_PAIR_BANK[locked_pair][b % 2];
+            /* pair_slot 0..5; cycle A B C A B C across the six
+             * two-bar slots. Arch-shape octave still applies: base
+             * on bars 1-4 and 9-12, +12 lift on bars 5-8. */
+            int pair_slot = b / 2;
+            int idx = PHRASE_PAIR_BANK[hook_pair[pair_slot % 3]][b % 2];
             int oct = (b >= 4 && b < 8) ? 12 : 0;
             apply_melody_phrase(&bars[b], idx, oct);
             break;

@@ -192,6 +192,22 @@ Phrase bank grew 8 → 16 entries (denser/more varied shapes).
 - Display got a new "Seeds:" row (line 21) listing all six bindings
   with the active one highlighted.
 
+## Round 12 — MEL_HOOK_2BAR gets three pairs, not one
+
+- **User**: "seed almost have no effect on the melody. can we use it
+  more, still staying inside the harmony and being major?"
+- **Why it didn't**: MEL_HOOK_2BAR consumed only one RNG draw to
+  pick one pair out of 14, then looped it for 12 bars. The seed
+  chose *which* of 14 pairs got locked, nothing else — many seeds
+  landed on very similar pairs.
+- **Fix**: pre-pick **three distinct** pairs (A, B, C) and cycle
+  `ABCABC` across the six two-bar pair-slots. Each pair still plays
+  twice so the locked-loop feel survives, but the seed now controls
+  a much larger combinatorial space (up to 14×13×12 ≈ 2000 ordered
+  triples). Arch-shape octave (bars 5-8 lifted +12) carries over.
+- Applies to all three daft variants (V1-V3) since they share
+  MEL_HOOK_2BAR.
+
 ## Invariants that settled along the way
 
 Things that got decided early-ish and haven't moved since:
