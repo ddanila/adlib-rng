@@ -145,8 +145,108 @@ class SrcChannel:
         self.key_on = False
 
 
+class AnalysisResult:
+    """Decisions the pre-pass hands to the transcoder:
+      - `legato[src_ch]` — skip key-off writes on this src (the patch's
+        own envelope decays to silence anyway, so the explicit key-off
+        only contributes an audible click edge on OPL2).
+      - `tl_clamp` — if not None, cap every carrier-TL write at this
+        value. Pulls the quietest notes up to a common floor, so
+        widely-varying dynamics don't leave background voices buried.
+    """
+    def __init__(self) -> None:
+        self.legato:   List[bool] = [False] * 18
+        self.tl_clamp: Optional[int] = None
+        # Raw stats for the printout:
+        self.note_count:  List[int] = [0] * 18
+        self.sl_by_ch:    List[Optional[int]] = [None] * 18  # carrier SL
+        self.tl_pooled:   List[int] = []                     # all TLs at keyon
+
+
+def analyze(data: bytes, data_offset: int,
+            sl_ceiling: int = 2) -> AnalysisResult:
+    """Walk the source once, simulating OPL3 state, then pick auto-fixes.
+
+    Legato criterion: if a channel's dominant carrier Sustain Level is
+    <= `sl_ceiling`, the envelope decays to (near) silence on its own.
+    The explicit key-off from the source only provides an audible edge
+    on OPL2, so we skip it — no click.
+
+    TL clamp: pooled across all key-ons, we pick the median carrier-TL.
+    Anything quieter than that in the output gets pulled up to it, so
+    the background layer survives without the lead layer being pushed
+    into distortion.
+    """
+    src = [SrcChannel() for _ in range(18)]
+    note_count = [0] * 18
+    sl_samples: List[Dict[int, int]] = [{} for _ in range(18)]
+    tl_pooled: List[int] = []
+
+    for ev in parse_commands(data, data_offset):
+        kind = ev[0]
+        if kind == "wait" or kind == "end":
+            if kind == "end":
+                break
+            continue
+        if kind != "w":
+            continue
+        _, port, reg, val, _pos = ev
+
+        if port == 0 and reg in (0xBD, 0x01, 0x02, 0x03, 0x04, 0x08):
+            continue
+        if port == 1 and reg in (0x04, 0x05, 0x08):
+            continue
+        cls = classify_reg(reg)
+        if cls is None:
+            continue
+        rkind, bank_ch, slot, is_car = cls
+        src_ch = bank_ch + (9 if port == 1 else 0)
+        s = src[src_ch]
+
+        if rkind == "op":
+            if is_car:
+                s.car[slot] = val
+            else:
+                s.mod[slot] = val
+        elif rkind == "fnum_lo":
+            s.fnum_lo = val
+        elif rkind == "fnum_hi":
+            old_key = s.key_on
+            s.fnum_hi = val
+            new_key = (val & 0x20) != 0
+            s.key_on = new_key
+            if new_key and not old_key:
+                note_count[src_ch] += 1
+                tl_pooled.append(s.car[1] & 0x3F)
+                # SL sits in the upper nibble of reg 0x80 (our slot 3),
+                # same one the chip uses to decide when "decay" ends.
+                sl = (s.car[3] >> 4) & 0x0F
+                sl_samples[src_ch][sl] = sl_samples[src_ch].get(sl, 0) + 1
+        elif rkind == "fb_conn":
+            s.fb_conn = val
+
+    result = AnalysisResult()
+    result.note_count = list(note_count)
+    result.tl_pooled  = sorted(tl_pooled)
+
+    for ch in range(18):
+        if not sl_samples[ch]:
+            continue
+        # Dominant SL for this channel (most-common at key-on).
+        dom_sl = max(sl_samples[ch].items(), key=lambda kv: kv[1])[0]
+        result.sl_by_ch[ch] = dom_sl
+        if dom_sl <= sl_ceiling:
+            result.legato[ch] = True
+
+    if result.tl_pooled:
+        n = len(result.tl_pooled)
+        result.tl_clamp = result.tl_pooled[n // 2]   # median
+    return result
+
+
 class Transcoder:
-    def __init__(self, trace: bool = False) -> None:
+    def __init__(self, analysis: Optional[AnalysisResult] = None,
+                 trace: bool = False) -> None:
         self.src: List[SrcChannel] = [SrcChannel() for _ in range(18)]
         self.dst_key    = [False] * 9
         self.dst_owner: List[Optional[int]] = [None] * 9
@@ -161,10 +261,30 @@ class Transcoder:
         self.dst_regs: Dict[int, int] = {}
         self.sample_time = 0
         self.trace = trace
+        self.analysis = analysis or AnalysisResult()   # zero-fix default
         self.stats = {
             "key_on": 0, "stolen": 0, "dropped": 0, "p1_mode_hits": 0,
             "writes_kept": 0, "writes_suppressed": 0,
+            "legato_skips": 0,
         }
+
+    # --- Auto-fix helpers ---------------------------------------- #
+
+    def _carrier_tl_val(self, src_ch: int) -> int:
+        """Current carrier 0x40 value for src_ch, normalised against the
+        global median TL clamp (if set). Modulator TL is left alone — it
+        controls FM depth, not perceived volume. This compresses the
+        dynamic range from the bottom: notes quieter than the median get
+        pulled up to it, while the loud half is untouched."""
+        val = self.src[src_ch].car[1]
+        clamp = self.analysis.tl_clamp
+        if clamp is None:
+            return val
+        ksl = val & 0xC0
+        tl  = val & 0x3F
+        if tl > clamp:
+            tl = clamp
+        return ksl | tl
 
     # --- Output buffer helpers ----------------------------------- #
 
@@ -233,9 +353,16 @@ class Transcoder:
         envelope generator (that's what caused the bass click)."""
         src = self.src[src_ch]
         mod_off, car_off = OP_OFFSETS[dst]
-        for slot_idx, base in enumerate([0x20, 0x40, 0x60, 0x80]):
-            self.emit_maybe(base + mod_off, src.mod[slot_idx])
-            self.emit_maybe(base + car_off, src.car[slot_idx])
+        # 0x20 / 0x60 / 0x80 — mod + car pass through.
+        self.emit_maybe(0x20 + mod_off, src.mod[0])
+        self.emit_maybe(0x20 + car_off, src.car[0])
+        # 0x40 — carrier gets the normalisation boost, mod stays.
+        self.emit_maybe(0x40 + mod_off, src.mod[1])
+        self.emit_maybe(0x40 + car_off, self._carrier_tl_val(src_ch))
+        self.emit_maybe(0x60 + mod_off, src.mod[2])
+        self.emit_maybe(0x60 + car_off, src.car[2])
+        self.emit_maybe(0x80 + mod_off, src.mod[3])
+        self.emit_maybe(0x80 + car_off, src.car[3])
         # Waveforms 4-7 exist only on OPL3; mask to OPL2's 2-bit field.
         self.emit_maybe(0xE0 + mod_off, src.mod[4] & 0x03)
         self.emit_maybe(0xE0 + car_off, src.car[4] & 0x03)
@@ -294,9 +421,13 @@ class Transcoder:
         mod_off, car_off = OP_OFFSETS[dst]
         base = [0x20, 0x40, 0x60, 0x80, 0xE0][slot]
         off  = car_off if is_car else mod_off
-        val  = (self.src[src_ch].car if is_car else self.src[src_ch].mod)[slot]
-        if slot == 4:
-            val &= 0x03
+        if slot == 1 and is_car:
+            # Carrier TL — apply the per-src normalisation boost.
+            val = self._carrier_tl_val(src_ch)
+        else:
+            val = (self.src[src_ch].car if is_car else self.src[src_ch].mod)[slot]
+            if slot == 4:
+                val &= 0x03
         self.emit_maybe(base + off, val)
 
     def do_fb_conn(self, src_ch: int) -> None:
@@ -341,11 +472,20 @@ class Transcoder:
             old_key = src.key_on
             src.fnum_hi = val
             new_key = (val & 0x20) != 0
+
+            # Legato auto-fix: on channels the analysis flagged as
+            # rapid-transition, eat the key-off entirely and keep the
+            # note held. The next key-on becomes a freq change on the
+            # held voice — no envelope reattack, no click.
+            if self.analysis.legato[src_ch] and old_key and not new_key:
+                self.stats["legato_skips"] += 1
+                # Don't touch src.key_on — stays True so the following
+                # key-on arrives as old_key=True → do_freq_change.
+                return
+
             src.key_on = new_key
             # Rhythm-mode drum channels don't use key-on bits on 0xB6/7/8.
             if self.rhythm_mode and port == 0 and bank_ch in (6, 7, 8):
-                # Still forward the pitch/block to dst if currently
-                # mapped — but since rhythm mode owns dst 6/7/8, skip.
                 return
             if new_key and not old_key:
                 self.do_note_on(src_ch, val)
@@ -422,11 +562,28 @@ def build_header(total_samples: int, data_len: int) -> bytes:
 def main() -> int:
     args = list(sys.argv[1:])
     trace = False
-    if "--trace" in args:
-        trace = True
-        args.remove("--trace")
+    raw   = False
+    no_legato = False
+    no_clamp  = False
+    while args and args[0].startswith("--"):
+        flag = args.pop(0)
+        if flag == "--trace":
+            trace = True
+        elif flag == "--raw":
+            raw = True
+        elif flag == "--no-legato":
+            no_legato = True
+        elif flag == "--no-clamp":
+            no_clamp = True
+        else:
+            print(f"unknown flag: {flag}", file=sys.stderr)
+            return 2
     if len(args) != 2:
-        print(f"usage: {sys.argv[0]} [--trace] SRC.vgm DST.vgm", file=sys.stderr)
+        print(
+            f"usage: {sys.argv[0]} "
+            f"[--raw | --no-legato | --no-clamp] [--trace] SRC.vgm DST.vgm",
+            file=sys.stderr,
+        )
         return 2
     src_path = Path(args[0])
     dst_path = Path(args[1])
@@ -441,7 +598,43 @@ def main() -> int:
     if hdr.ymf262_clk: chip.append(f"YMF262 @ {hdr.ymf262_clk} Hz")
     print("     chips:", ", ".join(chip) or "(none)")
 
-    t = Transcoder(trace=trace)
+    analysis: Optional[AnalysisResult] = None
+    if raw:
+        print("pre-pass: skipped (--raw)")
+    else:
+        analysis = analyze(data, hdr.data_offset)
+        if no_legato:
+            analysis.legato = [False] * 18
+        if no_clamp:
+            analysis.tl_clamp = None
+        tl = analysis.tl_pooled
+        if tl:
+            n = len(tl)
+            print(f"pre-pass: {n} key-ons across "
+                  f"{sum(1 for x in analysis.note_count if x > 0)} src channels")
+            print(f"  carrier TL  min=0x{tl[0]:02X}  p10=0x{tl[n//10]:02X}  "
+                  f"median=0x{tl[n//2]:02X}  p90=0x{tl[n*9//10]:02X}  "
+                  f"max=0x{tl[-1]:02X}")
+
+        if analysis.tl_clamp is not None:
+            clamp = analysis.tl_clamp
+            lifted = sum(1 for t in tl if t > clamp)
+            print(f"  auto-clamp: carrier TL <= 0x{clamp:02X} "
+                  f"({lifted}/{len(tl)} notes lifted up)")
+        elif no_clamp:
+            print("  auto-clamp: disabled (--no-clamp)")
+
+        legato_ch = [ch for ch in range(18) if analysis.legato[ch]]
+        if legato_ch:
+            print("  auto-legato: skipping key-off on src channels",
+                  ",".join(str(c) for c in legato_ch),
+                  "(SL<=2, envelope self-decays)")
+        elif no_legato:
+            print("  auto-legato: disabled (--no-legato)")
+        else:
+            print("  auto-legato: no channels flagged")
+
+    t = Transcoder(analysis=analysis, trace=trace)
     total_samples = 0
     for ev in parse_commands(data, hdr.data_offset):
         kind = ev[0]
@@ -467,6 +660,7 @@ def main() -> int:
     print(f"  voice steals : {t.stats['stolen']}")
     print(f"  dropped      : {t.stats['dropped']}")
     print(f"  p1 mode regs : {t.stats['p1_mode_hits']} (silently skipped)")
+    print(f"  legato skips : {t.stats['legato_skips']}")
     total_w = t.stats['writes_kept'] + t.stats['writes_suppressed']
     if total_w:
         pct = 100 * t.stats['writes_suppressed'] / total_w
