@@ -81,10 +81,11 @@ variation itself changes — clean A/B):
   1-bar phrase melody, `I-III-IV-V`
 - `2` — `90s+2bar` — same dance drums + rolling bass as **1**, but
   the melody draws 2-bar phrase *pairs* (statement → answer)
-- `3` — `maj+walk` — rock drums + walking bass (root → A-pent note
-  on every half-bar) + 1-bar phrase melody, `I-III-IV-V`
-- `4` — `maj+2bar` — rock drums + root bass + 2-bar phrase pairs,
-  `I-III-IV-V`
+- `3` — `90s+harm` — **1** plus a second lead voice (OPL channel 2,
+  brighter/pluckier patch) doubling the melody an octave up — thicker
+  synth-lead sound
+- `4` — `90s+fills` — **1** plus a second lead voice playing 16th-note
+  ornamental fills between the main phrase notes — more activity
 
 All progressions are `I-III-IV-V` (A - C# - D - E) — all-major, no vi.
 

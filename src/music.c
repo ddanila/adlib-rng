@@ -61,29 +61,36 @@ typedef enum { BASS_ROOTS = 0, BASS_WALKING = 1, BASS_ROLLING = 2 } bass_mode_t;
 typedef enum { PHR_BAR   = 0, PHR_2BAR      = 1 }                   phrase_mode_t;
 typedef enum { DRUMS_ROCK = 0, DRUMS_DANCE  = 1 }                   drum_pattern_t;
 
+/* lead2_mode: what the second melodic voice (ch 2) does.
+ *   NONE     — silent (V1, V2)
+ *   HARMONY  — doubles the melody one octave up (V3)
+ *   FILLS    — 16th-note ornaments between main phrase notes (V4) */
+typedef enum { LEAD2_NONE = 0, LEAD2_HARMONY = 1, LEAD2_FILLS = 2 } lead2_mode_t;
+
 typedef struct {
     const char    *name;
     const int8_t  *progression;
     phrase_mode_t  phr_mode;
     bass_mode_t    bass_mode;
     drum_pattern_t drum_pattern;
+    lead2_mode_t   lead2_mode;
 } variation_t;
 
-/* V1-V2 are the 90s-electronic slots (rolling bass + 4-on-the-floor);
- * V3-V4 keep the rock-flavoured walking/2bar variants with the new
- * all-major progression. */
+/* V1/V2 are the 90s-electronic slots the user committed to as the
+ * baseline. V3/V4 stack a second melodic voice on top of V1 to
+ * experiment with the solo feeling less static. */
 static const variation_t VARIATIONS[NUM_VARIATIONS] = {
-    { "90s+phr",   PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE },
-    { "90s+2bar",  PROG_MAJ4, PHR_2BAR, BASS_ROLLING, DRUMS_DANCE },
-    { "maj+walk",  PROG_MAJ4, PHR_BAR,  BASS_WALKING, DRUMS_ROCK  },
-    { "maj+2bar",  PROG_MAJ4, PHR_2BAR, BASS_ROOTS,   DRUMS_ROCK  }
+    { "90s+phr",   PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE, LEAD2_NONE    },
+    { "90s+2bar",  PROG_MAJ4, PHR_2BAR, BASS_ROLLING, DRUMS_DANCE, LEAD2_NONE    },
+    { "90s+harm",  PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE, LEAD2_HARMONY },
+    { "90s+fills", PROG_MAJ4, PHR_BAR,  BASS_ROLLING, DRUMS_DANCE, LEAD2_FILLS   }
 };
 
 static const char *VARIATION_DESC[NUM_VARIATIONS] = {
     "I-III-IV-V, rolling 16th bass + 4-on-floor, phrase melody",
     "I-III-IV-V, rolling 16th bass + 4-on-floor, 2-bar phrase pairs",
-    "I-III-IV-V, walking bass + rock drums, phrase melody",
-    "I-III-IV-V, root bass + rock drums, 2-bar phrase pairs"
+    "V1 + 2nd lead voice doubling melody an octave up (bright patch)",
+    "V1 + 2nd lead voice playing 16th ornaments between phrase notes"
 };
 
 static int current_variation = 0;
@@ -177,6 +184,36 @@ static void gen_melody_from_phrase(bar_t *bar, int phrase_idx) {
     }
 }
 
+/* Harmony = melody doubled one octave up. Simplest thickening trick;
+ * works for any phrase that already fits in the scale. */
+static void gen_lead2_harmony(bar_t *bar) {
+    int s;
+    for (s = 0; s < STEPS_PER_BAR; s++) {
+        if (bar->melody[s] >= 0) {
+            bar->lead2[s] = (int8_t)(bar->melody[s] + 12);
+        }
+    }
+}
+
+/* Fills = random pentatonic note on the 16th *between* each main
+ * phrase note (steps 4, 12, 20, ...). 50% chance per gap; an octave
+ * bump now and then. */
+static void gen_lead2_fills(bar_t *bar) {
+    int s;
+    for (s = 0; s < PHRASE_LEN; s++) {
+        int main_step = s * 8;
+        int fill_step = main_step + 4;
+        if (bar->melody[main_step] < 0) continue;   /* no main note, no fill */
+        if (rng_range(0, 1) == 0) continue;         /* 50% skip */
+        {
+            int8_t d   = SCALE_MAJ_PENT[rng_range(0, SCALE_LEN - 1)];
+            int8_t oct = (rng_range(0, 4) == 0) ? 12 : 0;
+            bar->lead2[fill_step] =
+                (int8_t)(MELODY_BASE_MIDI + KEY_ROOT + d + oct);
+        }
+    }
+}
+
 static void apply_drums_rock(bar_t *bar) {
     int s;
     /* Classic rock beat: kick on 1 & 3, snare on 2 & 4, hats on 8ths,
@@ -216,6 +253,7 @@ static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_id
     memset(bar, 0, sizeof(*bar));
     for (s = 0; s < STEPS_PER_BAR; s++) {
         bar->melody[s] = -1;
+        bar->lead2[s]  = -1;
         bar->bass[s]   = -1;
     }
 
@@ -236,6 +274,13 @@ static void gen_bar(bar_t *bar, const variation_t *v, int bar_idx, int phrase_id
     }
 
     gen_melody_from_phrase(bar, phrase_idx);
+
+    switch (v->lead2_mode) {
+    case LEAD2_HARMONY: gen_lead2_harmony(bar); break;
+    case LEAD2_FILLS:   gen_lead2_fills(bar);   break;
+    case LEAD2_NONE:
+    default:            break;
+    }
 
     if (v->drum_pattern == DRUMS_DANCE) {
         apply_drums_dance(bar);

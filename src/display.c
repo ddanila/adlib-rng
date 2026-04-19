@@ -151,13 +151,15 @@ static void draw_step_grid(int cur_step, const bar_t *bar) {
         char ch;
         unsigned char attr;
         uint8_t d = (uint8_t)bar->drums[i];
-        int has_mel  = bar->melody[i] >= 0;
-        int has_bass = bar->bass[i]   >= 0;
+        int has_mel   = bar->melody[i] >= 0;
+        int has_lead2 = bar->lead2[i]  >= 0;
+        int has_bass  = bar->bass[i]   >= 0;
 
         if      (d & DRUM_KICK)  { ch = 'K'; attr = ATTR_KICK;  }
         else if (d & DRUM_SNARE) { ch = 'S'; attr = ATTR_SNARE; }
         else if (d & DRUM_HAT)   { ch = 'h'; attr = ATTR_HAT;   }
         else if (has_mel)        { ch = 'M'; attr = ATTR_MEL;   }
+        else if (has_lead2)      { ch = 'm'; attr = ATTR_MEL;   }
         else if (has_bass)       { ch = 'b'; attr = ATTR_BASS;  }
         else if ((i & 15) == 0)  { ch = ':'; attr = ATTR_BARLINE; }
         else                     { ch = '.'; attr = ATTR_BARLINE; }

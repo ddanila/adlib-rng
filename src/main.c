@@ -11,6 +11,7 @@
 
 #define MELODY_CH  0
 #define BASS_CH    1
+#define LEAD2_CH   2   /* harmony / fills voice (see music.c) */
 
 static bar_t    bars[BARS];
 static uint32_t seed = 0x1337UL;
@@ -19,6 +20,7 @@ static void setup_voices(void) {
     opl_reset();
     opl_set_instrument(MELODY_CH, &OPL_INSTR_LEAD);
     opl_set_instrument(BASS_CH,   &OPL_INSTR_BASS);
+    opl_set_instrument(LEAD2_CH,  &OPL_INSTR_LEAD_BRIGHT);
     opl_set_instrument(6, &OPL_INSTR_RHY_BD);
     opl_set_instrument(7, &OPL_INSTR_RHY_SD_HH);
     opl_set_instrument(8, &OPL_INSTR_RHY_TT_TC);
@@ -34,13 +36,18 @@ static void silence_all(void) {
 
 static void play_step(int cur_bar, int cur_step) {
     const bar_t *bar = &bars[cur_bar];
-    int m = bar->melody[cur_step];
-    int b = bar->bass[cur_step];
+    int m  = bar->melody[cur_step];
+    int l2 = bar->lead2[cur_step];
+    int b  = bar->bass[cur_step];
     uint8_t d = bar->drums[cur_step];
 
     if (m >= 0) {
         opl_note_off(MELODY_CH);
         opl_note_on(MELODY_CH, m);
+    }
+    if (l2 >= 0) {
+        opl_note_off(LEAD2_CH);
+        opl_note_on(LEAD2_CH, l2);
     }
     if (b >= 0) {
         opl_note_off(BASS_CH);

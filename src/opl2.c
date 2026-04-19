@@ -128,6 +128,16 @@ const opl_instr_t OPL_INSTR_LEAD = {
     0x08
 };
 
+/* Brighter, pluckier lead for the second melodic voice. Quarter-sine
+ * waveform (reg 0xE0 value 3) adds high harmonics, faster decay cuts
+ * the tail so rapid 16ths don't mush together, and more feedback
+ * gives it edge. */
+const opl_instr_t OPL_INSTR_LEAD_BRIGHT = {
+    /* mod */ { 0x01, 0x00, 0xF8, 0xA3, 0x03 },
+    /* car */ { 0x01, 0x00, 0xF8, 0xA3, 0x03 },
+    0x0C
+};
+
 const opl_instr_t OPL_INSTR_BASS = {
     /* mod */ { 0x21, 0x1A, 0xF0, 0x33, 0x00 },
     /* car */ { 0x01, 0x00, 0xF0, 0x33, 0x00 },

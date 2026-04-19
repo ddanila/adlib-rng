@@ -46,6 +46,7 @@ void opl_rhythm_stop(void);
 void opl_rhythm_setup_pitches(void);
 
 extern const opl_instr_t OPL_INSTR_LEAD;
+extern const opl_instr_t OPL_INSTR_LEAD_BRIGHT;
 extern const opl_instr_t OPL_INSTR_BASS;
 extern const opl_instr_t OPL_INSTR_RHY_BD;
 extern const opl_instr_t OPL_INSTR_RHY_SD_HH;

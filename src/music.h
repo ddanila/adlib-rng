@@ -20,9 +20,11 @@ typedef enum {
 } drum_bits_t;
 
 typedef struct {
-    int8_t  melody[STEPS_PER_BAR];   /* MIDI note, -1 = rest */
+    int8_t  melody[STEPS_PER_BAR];   /* MIDI note, -1 = rest          */
+    int8_t  lead2[STEPS_PER_BAR];    /* second melodic voice (harmony
+                                        or 16th-note fills), -1 idle  */
     int8_t  bass[STEPS_PER_BAR];
-    uint8_t drums[STEPS_PER_BAR];    /* OR of drum_bits_t */
+    uint8_t drums[STEPS_PER_BAR];    /* OR of drum_bits_t             */
     uint8_t chord_root_midi[CHORDS_PER_BAR];
 } bar_t;
 
