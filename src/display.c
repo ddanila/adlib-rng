@@ -133,7 +133,14 @@ void display_init(uint32_t seed) {
             vga_printf(12, col,     ab, "[%d]", i + 1);
             vga_printf(12, col + 4, a,  "%-12s", music_variation_name(i));
         }
+        vga_puts(14, 0, ATTR_LABEL, "Now:");
+        vga_printf(14, 5, ATTR_VALUE, "%-73s", music_variation_desc(cur));
     }
+
+    vga_puts(16, 0, ATTR_LABEL, "Always:");
+    vga_puts(17, 2, ATTR_NORMAL, "A major pentatonic only (no 4th/7th); melody key-anchored to A");
+    vga_puts(18, 2, ATTR_NORMAL, "120 BPM, 64 substeps/bar, 12 bars then loop forever");
+    vga_puts(19, 2, ATTR_NORMAL, "Drums via OPL2 rhythm mode: kick 1/3, snare 2/4, hats on 8ths");
 
     vga_puts(24, 0, ATTR_LABEL, "ESC: quit    1-4: variation");
 }

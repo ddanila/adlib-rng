@@ -86,6 +86,13 @@ static const variation_t VARIATIONS[NUM_VARIATIONS] = {
     { "50s+2bar",   PROG_50S,   PHR_2BAR, BASS_ROOTS   }
 };
 
+static const char *VARIATION_DESC[NUM_VARIATIONS] = {
+    "phrase-bank melody over 12-bar blues (I-IV-V), root bass",
+    "phrase-bank melody over I-vi-IV-V 50s pop, root bass",
+    "50s pop, bass walks root -> chord tone every half-bar",
+    "50s pop, melody draws 2-bar phrase pairs (call+answer)"
+};
+
 static int current_variation = 0;
 
 void music_set_variation(int idx) {
@@ -100,6 +107,11 @@ int music_get_variation(void) {
 const char *music_variation_name(int idx) {
     if (idx < 0 || idx >= NUM_VARIATIONS) return "?";
     return VARIATIONS[idx].name;
+}
+
+const char *music_variation_desc(int idx) {
+    if (idx < 0 || idx >= NUM_VARIATIONS) return "";
+    return VARIATION_DESC[idx];
 }
 
 #define BASS_BASE_MIDI    33   /* A1 (≈ 55 Hz) */

@@ -31,6 +31,7 @@ typedef struct {
 void        music_set_variation(int idx);
 int         music_get_variation(void);
 const char *music_variation_name(int idx);
+const char *music_variation_desc(int idx);
 void        music_generate(bar_t *bars, int num_bars);
 
 #endif
