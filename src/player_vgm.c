@@ -34,6 +34,11 @@ static uint32_t  g_samples_played;   /* accumulated across wait cmds  */
 static uint32_t  g_start_ms;
 static uint32_t  g_next_event_ms;    /* when the next command fires   */
 static uint32_t  g_last_display_ms;
+/* Running counters the user can reference in bug reports ("it clicked
+ * at write N" / "at reg 0xBn"). Displayed live on the HUD. */
+static uint32_t  g_writes;
+static uint8_t   g_last_reg;
+static uint8_t   g_last_val;
 
 static uint32_t le32(const uint8_t *p) {
     return (uint32_t)p[0]
@@ -93,6 +98,15 @@ static void draw_progress(uint32_t now_ms) {
                          on ? '#' : '-');
     }
     display_vga_putc(11, 1 + PROGRESS_W, ATTR_LABEL, ']');
+
+    /* Live write counter + last-written register. If you hear an
+     * artefact, jot down the number shown here — it's a deterministic
+     * timestamp that survives across playback. */
+    display_vga_puts  (15, 0, ATTR_LABEL, "writes:");
+    display_vga_printf(15, 8, ATTR_VALUE, "%-10lu", (unsigned long)g_writes);
+    display_vga_puts  (15, 22, ATTR_LABEL, "last reg:");
+    display_vga_printf(15, 32, ATTR_VALUE, "0x%02X = 0x%02X",
+                       (unsigned)g_last_reg, (unsigned)g_last_val);
 }
 
 static void silence_all(void) {
@@ -130,6 +144,9 @@ static int step_one(void) {
         val = fgetc(g_f);
         if (reg == EOF || val == EOF) return 1;
         opl_write((uint16_t)reg, (uint8_t)val);
+        g_writes++;
+        g_last_reg = (uint8_t)reg;
+        g_last_val = (uint8_t)val;
         return 0;
     }
     if (c == 0x61) {
@@ -263,6 +280,9 @@ static int player_vgm_init(const char *arg) {
     g_start_ms        = timer_ms();
     g_next_event_ms   = g_start_ms;
     g_last_display_ms = g_start_ms;
+    g_writes          = 0;
+    g_last_reg        = 0;
+    g_last_val        = 0;
 
     draw_status("playing", ATTR_OK);
     draw_progress(g_start_ms);

@@ -146,7 +146,7 @@ class SrcChannel:
 
 
 class Transcoder:
-    def __init__(self) -> None:
+    def __init__(self, trace: bool = False) -> None:
         self.src: List[SrcChannel] = [SrcChannel() for _ in range(18)]
         self.dst_key    = [False] * 9
         self.dst_owner: List[Optional[int]] = [None] * 9
@@ -155,22 +155,57 @@ class Transcoder:
         self.counter = 0
         self.rhythm_mode = False
         self.out: List[tuple] = []
-        self.stats = {"key_on": 0, "stolen": 0, "dropped": 0, "p1_mode_hits": 0}
+        # Shadow of the OPL2 register file so we can diff-suppress
+        # redundant writes. DOS player opl_reset()'s to all-zeros before
+        # streaming, so that matches our starting state.
+        self.dst_regs: Dict[int, int] = {}
+        self.sample_time = 0
+        self.trace = trace
+        self.stats = {
+            "key_on": 0, "stolen": 0, "dropped": 0, "p1_mode_hits": 0,
+            "writes_kept": 0, "writes_suppressed": 0,
+        }
 
     # --- Output buffer helpers ----------------------------------- #
 
     def emit(self, reg: int, val: int) -> None:
-        self.out.append(("w", reg & 0xFF, val & 0xFF))
+        """Always emit. Use for the key-on edge, where the envelope
+        needs the transition even when the numeric value matches."""
+        reg &= 0xFF
+        val &= 0xFF
+        self.out.append(("w", reg, val))
+        self.dst_regs[reg] = val
+        self.stats["writes_kept"] += 1
+
+    def emit_maybe(self, reg: int, val: int) -> None:
+        """Emit only if the value differs from what's already in the dst
+        register. Safe for all patch writes and for fnum/release paths
+        — never use it for do_note_on's key-on write."""
+        reg &= 0xFF
+        val &= 0xFF
+        if self.dst_regs.get(reg) == val:
+            self.stats["writes_suppressed"] += 1
+            return
+        self.out.append(("w", reg, val))
+        self.dst_regs[reg] = val
+        self.stats["writes_kept"] += 1
 
     def wait(self, n: int) -> None:
         self.out.append(("wait", n))
+        self.sample_time += n
 
     def end(self) -> None:
         self.out.append(("end",))
 
+    def log(self, msg: str) -> None:
+        if not self.trace:
+            return
+        s = self.sample_time
+        sys.stderr.write(f"[{s // 44100:3d}:{(s % 44100) * 1000 // 44100:03d}] {msg}\n")
+
     # --- Voice allocation ---------------------------------------- #
 
-    def allocate(self) -> Optional[int]:
+    def allocate(self, src_ch: int) -> Optional[int]:
         pool = list(range(6)) if self.rhythm_mode else list(range(9))
         for d in pool:
             if not self.dst_key[d]:
@@ -179,8 +214,11 @@ class Transcoder:
         self.stats["stolen"] += 1
         victim = min(pool, key=lambda x: self.dst_last_used[x])
         prev_owner = self.dst_owner[victim]
+        self.log(f"steal dst {victim} from src {prev_owner} for src {src_ch}")
         if prev_owner is not None and self.map.get(prev_owner) == victim:
             del self.map[prev_owner]
+        # Force a key-off edge on the stolen voice so its envelope
+        # releases cleanly before the new note lands on top of it.
         self.emit(0xB0 + victim, 0x00)
         self.dst_key[victim]   = False
         self.dst_owner[victim] = None
@@ -189,28 +227,34 @@ class Transcoder:
     # --- Emission primitives ------------------------------------- #
 
     def install_patch(self, dst: int, src_ch: int) -> None:
-        """Configure dst with src_ch's current patch. 13 writes total."""
+        """Configure dst with src_ch's current patch. Diff-suppressed —
+        if the dst already holds the exact values, we skip those writes
+        so consecutive notes on the same voice don't re-tickle the
+        envelope generator (that's what caused the bass click)."""
         src = self.src[src_ch]
         mod_off, car_off = OP_OFFSETS[dst]
         for slot_idx, base in enumerate([0x20, 0x40, 0x60, 0x80]):
-            self.emit(base + mod_off, src.mod[slot_idx])
-            self.emit(base + car_off, src.car[slot_idx])
+            self.emit_maybe(base + mod_off, src.mod[slot_idx])
+            self.emit_maybe(base + car_off, src.car[slot_idx])
         # Waveforms 4-7 exist only on OPL3; mask to OPL2's 2-bit field.
-        self.emit(0xE0 + mod_off, src.mod[4] & 0x03)
-        self.emit(0xE0 + car_off, src.car[4] & 0x03)
+        self.emit_maybe(0xE0 + mod_off, src.mod[4] & 0x03)
+        self.emit_maybe(0xE0 + car_off, src.car[4] & 0x03)
         # C0 has stereo (bits 4-5) and 4-op carrier flag (bit 6) on
         # OPL3; OPL2 only cares about bits 0-3 (FB + connection).
-        self.emit(0xC0 + dst, src.fb_conn & 0x0F)
-        self.emit(0xA0 + dst, src.fnum_lo)
+        self.emit_maybe(0xC0 + dst, src.fb_conn & 0x0F)
+        self.emit_maybe(0xA0 + dst, src.fnum_lo)
 
     # --- Source event handlers ----------------------------------- #
 
     def do_note_on(self, src_ch: int, fnum_hi_val: int) -> None:
-        dst = self.allocate()
+        dst = self.allocate(src_ch)
         if dst is None:
             self.stats["dropped"] += 1
+            self.log(f"DROP note on src {src_ch}: no free dst")
             return
         self.install_patch(dst, src_ch)
+        # Key-on MUST always emit — the envelope needs the rising edge
+        # even when fnum_hi happens to match what's already in the reg.
         self.emit(0xB0 + dst, fnum_hi_val & 0x3F)
         self.map[src_ch]        = dst
         self.dst_owner[dst]     = src_ch
@@ -218,12 +262,14 @@ class Transcoder:
         self.counter           += 1
         self.dst_last_used[dst] = self.counter
         self.stats["key_on"]   += 1
+        src = self.src[src_ch]
+        self.log(f"keyon  src {src_ch:2d} -> dst {dst}  fnum=0x{fnum_hi_val & 0x3F:02X}{src.fnum_lo:02X}  car_tl=0x{src.car[1] & 0x3F:02X} mod_tl=0x{src.mod[1] & 0x3F:02X}")
 
     def do_note_off(self, src_ch: int) -> None:
         dst = self.map.get(src_ch)
         if dst is None:
             return
-        self.emit(0xB0 + dst, self.src[src_ch].fnum_hi & 0x1F)
+        self.emit_maybe(0xB0 + dst, self.src[src_ch].fnum_hi & 0x1F)
         self.dst_key[dst] = False
         del self.map[src_ch]
 
@@ -232,14 +278,14 @@ class Transcoder:
         if dst is None:
             return
         s = self.src[src_ch]
-        self.emit(0xA0 + dst, s.fnum_lo)
-        self.emit(0xB0 + dst, s.fnum_hi & 0x3F)
+        self.emit_maybe(0xA0 + dst, s.fnum_lo)
+        self.emit_maybe(0xB0 + dst, s.fnum_hi & 0x3F)
 
     def do_fnum_lo(self, src_ch: int) -> None:
         dst = self.map.get(src_ch)
         if dst is None:
             return
-        self.emit(0xA0 + dst, self.src[src_ch].fnum_lo)
+        self.emit_maybe(0xA0 + dst, self.src[src_ch].fnum_lo)
 
     def do_op_write(self, src_ch: int, slot: int, is_car: bool) -> None:
         dst = self.map.get(src_ch)
@@ -251,13 +297,13 @@ class Transcoder:
         val  = (self.src[src_ch].car if is_car else self.src[src_ch].mod)[slot]
         if slot == 4:
             val &= 0x03
-        self.emit(base + off, val)
+        self.emit_maybe(base + off, val)
 
     def do_fb_conn(self, src_ch: int) -> None:
         dst = self.map.get(src_ch)
         if dst is None:
             return
-        self.emit(0xC0 + dst, self.src[src_ch].fb_conn & 0x0F)
+        self.emit_maybe(0xC0 + dst, self.src[src_ch].fb_conn & 0x0F)
 
     # --- Main dispatch ------------------------------------------- #
 
@@ -374,11 +420,16 @@ def build_header(total_samples: int, data_len: int) -> bytes:
 # ---------------------------------------------------------------- #
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print(f"usage: {sys.argv[0]} SRC.vgm DST.vgm", file=sys.stderr)
+    args = list(sys.argv[1:])
+    trace = False
+    if "--trace" in args:
+        trace = True
+        args.remove("--trace")
+    if len(args) != 2:
+        print(f"usage: {sys.argv[0]} [--trace] SRC.vgm DST.vgm", file=sys.stderr)
         return 2
-    src_path = Path(sys.argv[1])
-    dst_path = Path(sys.argv[2])
+    src_path = Path(args[0])
+    dst_path = Path(args[1])
 
     data = src_path.read_bytes()
     hdr  = VGMHeader(data)
@@ -390,7 +441,7 @@ def main() -> int:
     if hdr.ymf262_clk: chip.append(f"YMF262 @ {hdr.ymf262_clk} Hz")
     print("     chips:", ", ".join(chip) or "(none)")
 
-    t = Transcoder()
+    t = Transcoder(trace=trace)
     total_samples = 0
     for ev in parse_commands(data, hdr.data_offset):
         kind = ev[0]
@@ -416,6 +467,11 @@ def main() -> int:
     print(f"  voice steals : {t.stats['stolen']}")
     print(f"  dropped      : {t.stats['dropped']}")
     print(f"  p1 mode regs : {t.stats['p1_mode_hits']} (silently skipped)")
+    total_w = t.stats['writes_kept'] + t.stats['writes_suppressed']
+    if total_w:
+        pct = 100 * t.stats['writes_suppressed'] / total_w
+        print(f"  writes       : {t.stats['writes_kept']} kept, "
+              f"{t.stats['writes_suppressed']} diff-suppressed ({pct:.0f}%)")
     return 0
 
 
