@@ -77,9 +77,10 @@ Keys while playing:
 
 ## What you'll hear
 
-12 bars of `Am — Dm — G — C` repeated three times, looped. Bass plays
-roots and a few fifths/octaves. Melody picks scale-constrained notes
-from A natural minor (with pentatonic emphasis) on an 8th-note grid.
+12-bar minor blues in A: `i-i-i-i / iv-iv-i-i / V-iv-i-V`, looped.
+Bass plays roots and a few fifths/octaves. Melody picks scale notes
+from A natural minor — *key*-anchored, not chord-anchored, so the
+solo stays in key over the V chord (blues idiom).
 Drums hit a basic kick / snare / hat pattern with a sprinkle of
 RNG-driven extra kicks. Tempo is fixed at 120 BPM, 64 substeps/bar.
 
