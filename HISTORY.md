@@ -208,6 +208,30 @@ Phrase bank grew 8 → 16 entries (denser/more varied shapes).
 - Applies to all three daft variants (V1-V3) since they share
   MEL_HOOK_2BAR.
 
+## Round 13 — seed actually drives the melody now
+
+- **User**: "still almost no effect. analyze more carefully why and
+  fix" (after round 12's 3-pair ABC fix).
+- **Re-analysis of why 3 pairs wasn't enough**:
+  1. `ABCABC` means each of the 3 pairs plays twice, so only 3
+     distinct melodic ideas per seed regardless of bank size.
+  2. All phrases live in A pentatonic in roughly the same octave
+     range (with a fixed arch lift on bars 5-8), so differences
+     between "pair 4 vs pair 11" are subtle when drums and bass
+     dominate the mix.
+  3. Drums and bass are effectively *identical* across seeds
+     (DRUMS_DANCE has 2 coin-flip ghost-hat positions per bar; that's
+     it). So the ear latches onto the unchanging rhythm section and
+     glosses over the melody variation.
+- **Fix**: pick **six independent pairs** (one per 2-bar slot, no
+  distinctness constraint) *and* **six independent octave shifts**
+  (0 or +12 each). 12 RNG draws per seed for melody instead of 3.
+  The 12-bar hook becomes a composed piece of six 2-bar statements,
+  not a 3-idea cycle. Arch-shape octave is retired — the seeded
+  per-slot octave replaces it (with more variety).
+- Still "inside the harmony" and "major" — phrases all come from the
+  A-pent bank, octave shifts stay within +/-1 octave.
+
 ## Invariants that settled along the way
 
 Things that got decided early-ish and haven't moved since:

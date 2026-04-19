@@ -473,29 +473,29 @@ static void apply_lead2(bar_t *bar, lead2_mode_t mode) {
 
 void music_generate(bar_t *bars, int num_bars) {
     const variation_t *v = &VARIATIONS[current_variation];
-    int locked_idx_a   = 0;   /* for MINIMAL_LOOP — "A" phrase */
-    int locked_idx_b   = 0;   /* for MINIMAL_LOOP — "B" phrase */
-    int hook_pair[3]   = {0, 0, 0};  /* for HOOK_2BAR — ABC cycle */
+    int locked_idx_a = 0;   /* for MINIMAL_LOOP — "A" phrase */
+    int locked_idx_b = 0;   /* for MINIMAL_LOOP — "B" phrase */
+    /* For HOOK_2BAR we now pick a pair AND an octave independently
+     * per pair-slot — 6 pair-slots × 2 picks = 12 RNG draws. That
+     * turns the seed into a composition knob instead of a single
+     * choice out of 14. */
+    int hook_pair[6] = {0, 0, 0, 0, 0, 0};
+    int hook_oct[6]  = {0, 0, 0, 0, 0, 0};
     int b;
     if (num_bars > BARS) num_bars = BARS;
 
-    /* Pre-pick the locked indices for "repeat one thing" modes. Done
-     * up front so the RNG consumption is a known shape regardless of
-     * melody mode, keeping bass/drum RNG comparable across switches. */
+    /* Pre-pick all RNG for melody modes that need it. Done up front
+     * so the RNG consumption is a known shape regardless of melody
+     * mode, keeping bass/drum RNG comparable across switches. */
     if (v->melody_mode == MEL_MINIMAL_LOOP) {
         locked_idx_a = rng_range(0, MINIMAL_COUNT - 1);
         locked_idx_b = rng_range(0, MINIMAL_COUNT - 1);
     } else if (v->melody_mode == MEL_HOOK_2BAR) {
-        /* Pick three *distinct* pairs and cycle ABCABC across the six
-         * pair-slots in the 12-bar loop. That's three melodic ideas
-         * per seed instead of one, so different seeds land on very
-         * different material — but each idea still plays twice, so
-         * the locked-loop feel survives. */
-        hook_pair[0] = rng_range(0, PHRASE_PAIR_COUNT - 1);
-        do { hook_pair[1] = rng_range(0, PHRASE_PAIR_COUNT - 1); }
-            while (hook_pair[1] == hook_pair[0]);
-        do { hook_pair[2] = rng_range(0, PHRASE_PAIR_COUNT - 1); }
-            while (hook_pair[2] == hook_pair[0] || hook_pair[2] == hook_pair[1]);
+        int i;
+        for (i = 0; i < 6; i++) {
+            hook_pair[i] = rng_range(0, PHRASE_PAIR_COUNT - 1);
+            hook_oct[i]  = rng_range(0, 1) ? 12 : 0;
+        }
     }
 
     for (b = 0; b < num_bars; b++) {
@@ -514,12 +514,13 @@ void music_generate(bar_t *bars, int num_bars) {
             apply_melody_stab(&bars[b], rng_range(0, STAB_COUNT - 1));
             break;
         case MEL_HOOK_2BAR: {
-            /* pair_slot 0..5; cycle A B C A B C across the six
-             * two-bar slots. Arch-shape octave still applies: base
-             * on bars 1-4 and 9-12, +12 lift on bars 5-8. */
+            /* Each pair-slot gets its own pair + its own octave shift
+             * — the 12-bar hook becomes a *composition* of six 2-bar
+             * statements, not a 3-idea cycle. Still "in the harmony
+             * and major" because phrases all come from A-pent bank. */
             int pair_slot = b / 2;
-            int idx = PHRASE_PAIR_BANK[hook_pair[pair_slot % 3]][b % 2];
-            int oct = (b >= 4 && b < 8) ? 12 : 0;
+            int idx = PHRASE_PAIR_BANK[hook_pair[pair_slot]][b % 2];
+            int oct = hook_oct[pair_slot];
             apply_melody_phrase(&bars[b], idx, oct);
             break;
         }
