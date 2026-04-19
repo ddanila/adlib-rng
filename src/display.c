@@ -88,7 +88,7 @@ static void note_str(int midi, char *out) {
     sprintf(out, "%s%d", NOTE_NAMES[midi % 12], (midi / 12) - 1);
 }
 
-void display_init(uint32_t seed, drum_mode_t mode) {
+void display_init(uint32_t seed) {
     int i;
     vga_init();
     hide_cursor();
@@ -97,8 +97,6 @@ void display_init(uint32_t seed, drum_mode_t mode) {
     vga_puts(0, 0, ATTR_TITLE, "adlib-rng");
     vga_printf(0, 24, ATTR_LABEL, "seed=");
     vga_printf(0, 29, ATTR_VALUE, "0x%08lX", (unsigned long)seed);
-    vga_printf(0, 44, ATTR_LABEL, "drum=");
-    vga_puts(0, 49, ATTR_VALUE, (mode == DRUM_RHYTHM) ? "rhythm" : "fm    ");
 
     vga_puts(2, 0, ATTR_LABEL, "Bar:");
     vga_puts(2, 16, ATTR_LABEL, "Step:");
@@ -137,7 +135,7 @@ void display_init(uint32_t seed, drum_mode_t mode) {
         }
     }
 
-    vga_puts(24, 0, ATTR_LABEL, "ESC: quit    R: drum mode    1-4: variation");
+    vga_puts(24, 0, ATTR_LABEL, "ESC: quit    1-4: variation");
 }
 
 static void draw_step_grid(int cur_step, const bar_t *bar) {

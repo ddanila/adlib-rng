@@ -12,8 +12,6 @@
  * Stored as microseconds for cumulative scheduling without drift. */
 #define STEP_US          31250UL
 
-typedef enum { DRUM_FM = 0, DRUM_RHYTHM = 1 } drum_mode_t;
-
 typedef enum {
     DRUM_NONE  = 0,
     DRUM_KICK  = 1,

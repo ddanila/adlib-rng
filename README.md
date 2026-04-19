@@ -65,31 +65,34 @@ Inside DOS (the floppy's `AUTOEXEC.BAT` runs it automatically with
 default args):
 
 ```
-A:> ADLIB                  default seed (0x1337), FM-voice drums
-A:> ADLIB 42               seed=42, FM drums
-A:> ADLIB 42 rhythm        seed=42, OPL2 native rhythm mode
+A:> ADLIB          default seed 0x1337
+A:> ADLIB 42       seed = 42
 ```
 
-Keys while playing:
+Drums always use OPL2 native rhythm mode (FM-voice drums were cut in
+the last listening round).
+
+Keys while playing (RNG re-seeds on every switch, so only the
+variation itself changes — clean A/B):
 
 - `ESC` — quit
-- `R` — toggle drum mode (FM ↔ rhythm) live
-- `1`–`4` — switch melodic/harmonic variation live (RNG re-seeds, so
-  the only thing that changes is the variation itself):
-  - **1** baseline — random scale picks, full A major, blues progression
-  - **2** +pentatonic — same, but only "happy" notes (no 4th/7th)
-  - **3** +phrases — picks from a bank of pre-shaped 1-bar phrases
-    instead of slot-by-slot random; gives the melody actual contour
-  - **4** +50s pop — phrases over `I-vi-IV-V` (the doo-wop progression)
-    instead of blues `I-IV-V`
+- `1` — `blues+phr` — phrase-bank melody over 12-bar blues
+  (`I-IV-V`), root bass
+- `2` — `50s+phr` — same melody style over the `I-vi-IV-V` doo-wop
+  progression, root bass
+- `3` — `50s+walk` — as **2**, but bass walks (root → chord tone)
+  on every half-bar for more motion
+- `4` — `50s+2bar` — as **2**, but melody picks 2-bar phrase *pairs*
+  (statement → answer) instead of independent per-bar phrases, for
+  multi-bar arcs
 
 ## What you'll hear
 
-Quick-change blues in A major at half-bar resolution. The full round
-`I-I-I-I / IV-IV-I-I / V-IV-I-V` (24 chord changes) plays through
-twice across the 12-bar window. Bass plays roots and a few optional
-fifths. Melody picks scale notes from A major — *key*-anchored, not
-chord-anchored, so the solo stays in key over every chord.
+Key is A major (pentatonic throughout — the 4th and 7th degrees got
+cut for sounding too modal). Harmony is one of two progressions at
+half-bar resolution depending on variation: the 12-bar blues (looped
+twice) or the `I-vi-IV-V` "50s pop" cycle (looped six times). Melody
+is key-anchored, so the solo stays in key over every chord.
 Drums hit a basic kick / snare / hat pattern with a sprinkle of
 RNG-driven extra kicks. Tempo is fixed at 120 BPM, 64 substeps/bar.
 
