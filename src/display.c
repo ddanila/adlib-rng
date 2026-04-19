@@ -125,7 +125,19 @@ void display_init(uint32_t seed, drum_mode_t mode) {
         vga_putc(10, 9 + i * 4, ATTR_LABEL, ']');
     }
 
-    vga_puts(24, 0, ATTR_LABEL, "ESC: quit    R: toggle drum mode (FM <-> rhythm)");
+    {
+        int cur = music_get_variation();
+        vga_puts(12, 0, ATTR_LABEL, "Variations:");
+        for (i = 0; i < NUM_VARIATIONS; i++) {
+            int col = 13 + i * 17;
+            unsigned char a = (i == cur) ? ATTR_CURBAR : ATTR_NORMAL;
+            unsigned char ab = (i == cur) ? ATTR_CURBAR : ATTR_LABEL;
+            vga_printf(12, col,     ab, "[%d]", i + 1);
+            vga_printf(12, col + 4, a,  "%-12s", music_variation_name(i));
+        }
+    }
+
+    vga_puts(24, 0, ATTR_LABEL, "ESC: quit    R: drum mode    1-4: variation");
 }
 
 static void draw_step_grid(int cur_step, const bar_t *bar) {

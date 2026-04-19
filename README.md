@@ -73,7 +73,15 @@ A:> ADLIB 42 rhythm        seed=42, OPL2 native rhythm mode
 Keys while playing:
 
 - `ESC` — quit
-- `R` — toggle drum mode (FM ↔ rhythm) live, for A/B comparison
+- `R` — toggle drum mode (FM ↔ rhythm) live
+- `1`–`4` — switch melodic/harmonic variation live (RNG re-seeds, so
+  the only thing that changes is the variation itself):
+  - **1** baseline — random scale picks, full A major, blues progression
+  - **2** +pentatonic — same, but only "happy" notes (no 4th/7th)
+  - **3** +phrases — picks from a bank of pre-shaped 1-bar phrases
+    instead of slot-by-slot random; gives the melody actual contour
+  - **4** +50s pop — phrases over `I-vi-IV-V` (the doo-wop progression)
+    instead of blues `I-IV-V`
 
 ## What you'll hear
 

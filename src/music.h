@@ -28,6 +28,11 @@ typedef struct {
     uint8_t chord_root_midi[CHORDS_PER_BAR];
 } bar_t;
 
-void music_generate(bar_t *bars, int num_bars);
+#define NUM_VARIATIONS 4
+
+void        music_set_variation(int idx);
+int         music_get_variation(void);
+const char *music_variation_name(int idx);
+void        music_generate(bar_t *bars, int num_bars);
 
 #endif

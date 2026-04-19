@@ -140,6 +140,24 @@ int main(int argc, char **argv) {
                 silence_all();
                 setup_voices();
                 display_init(seed, drum_mode);
+            } else if (k >= '1' && k <= '0' + NUM_VARIATIONS) {
+                int v = k - '1';
+                if (v != music_get_variation()) {
+                    /* Re-seed before regenerating so the only thing
+                     * that changes between variations is the variation
+                     * itself, not the random draws. */
+                    music_set_variation(v);
+                    rng_seed(seed);
+                    music_generate(bars, BARS);
+                    silence_all();
+                    cur_bar       = 0;
+                    cur_step      = 0;
+                    total_steps   = 1;
+                    loop_start_ms = timer_ms();
+                    display_init(seed, drum_mode);
+                    play_step(cur_bar, cur_step);
+                    display_frame(cur_bar, cur_step, &bars[cur_bar]);
+                }
             }
         }
     }
