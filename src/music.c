@@ -8,15 +8,30 @@ static const int8_t SCALE_MAJ_PENT[] = { 0, 2, 4, 7, 9 };
 
 #define PROG_LEN (BARS * CHORDS_PER_BAR)
 
-/* All-major progression in A: I-III-IV-V (A - C# - D - E). Replaces
- * the earlier I-vi-IV-V, whose vi (F#m) implied a minor chord the
- * ear kept hearing under the A-pent melody. I-III-IV-V keeps the
- * same rising/resolving shape with zero minor implication. One chord
- * per half-bar so the 4-chord cycle spans 2 bars; repeats six times
- * across the 12-bar window. */
+/* All-major progression in A: I-III-IV-V (A - C# - D - E). The
+ * 4-chord cycle spans 2 bars; repeats six times across 12 bars. */
 static const int8_t PROG_MAJ4[PROG_LEN] = {
     0, 4,  5, 7,   0, 4,  5, 7,   0, 4,  5, 7,
     0, 4,  5, 7,   0, 4,  5, 7,   0, 4,  5, 7
+};
+
+/* Standard 12-bar blues (I-IV-V in A = A-D-E, all major) compressed
+ * to half-bar resolution so the 12-chord round fits in 6 bars, then
+ * looped twice to fill our 12-bar window. Half-bar layout of one
+ * round:  I I | I I | IV IV | I I | V IV | I V
+ * All three chord roots are major in A major, so this stays inside
+ * the all-major invariant. */
+static const int8_t PROG_BLUES[PROG_LEN] = {
+    0, 0,  0, 0,  5, 5,  0, 0,  7, 5,  0, 7,
+    0, 0,  0, 0,  5, 5,  0, 0,  7, 5,  0, 7
+};
+
+/* Minimal house vamp: one bar of I, one bar of IV, loop six times.
+ * Slowest harmonic motion of the three — lets the locked hook and
+ * the pumping bass carry the piece. */
+static const int8_t PROG_VAMP[PROG_LEN] = {
+    0, 0,  5, 5,  0, 0,  5, 5,  0, 0,  5, 5,
+    0, 0,  5, 5,  0, 0,  5, 5,  0, 0,  5, 5
 };
 
 /* Melody phrase bank. Each phrase is 8 eighth-note slots holding
@@ -116,20 +131,21 @@ typedef struct {
     lead2_mode_t   lead2_mode;
 } variation_t;
 
-/* Each genre now drives the melody too, not just drums + bass. V4 is
- * the reference — the previous round's "90s+fills" — left as an
- * anchor for comparison. */
+/* V1-V3 are all the "daft" style (pump bass + house drums + locked
+ * 2-bar hook + octave harmony) over three different progressions,
+ * so you can compare what only the harmony structure does. V4 stays
+ * as the round-7 reference "90s+fills" anchor. */
 static const variation_t VARIATIONS[NUM_VARIATIONS] = {
-    { "techno",    PROG_MAJ4, BASS_ROOTS,   DRUMS_TECHNO, MEL_MINIMAL_LOOP, LEAD2_NONE    },
-    { "dnb",       PROG_MAJ4, BASS_ROLLING, DRUMS_BREAK,  MEL_STAB_16TH,    LEAD2_HARMONY },
+    { "daft-blues",PROG_BLUES,BASS_PUMP,    DRUMS_DANCE,  MEL_HOOK_2BAR,    LEAD2_HARMONY },
+    { "daft-vamp", PROG_VAMP, BASS_PUMP,    DRUMS_DANCE,  MEL_HOOK_2BAR,    LEAD2_HARMONY },
     { "daft",      PROG_MAJ4, BASS_PUMP,    DRUMS_DANCE,  MEL_HOOK_2BAR,    LEAD2_HARMONY },
     { "90s+fills", PROG_MAJ4, BASS_ROLLING, DRUMS_DANCE,  MEL_FRESH_PHRASE, LEAD2_FILLS   }
 };
 
 static const char *VARIATION_DESC[NUM_VARIATIONS] = {
-    "techno: 4-on-floor + offbeat hats, root bass, locked 1-bar motif",
-    "d&b: breakbeat + rolling bass + 16th stabs + octave harmony",
-    "daft: pump bass + house drums + locked 2-bar hook + harmony",
+    "daft style over 12-bar blues (I-IV-V), same everything else",
+    "daft style over a minimal I-IV 1-bar vamp (slow harmonic motion)",
+    "daft style over I-III-IV-V (from round 7 — reference daft)",
     "ref: rolling bass + dance drums + fresh-per-bar phrase + fills"
 };
 

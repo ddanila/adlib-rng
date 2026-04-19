@@ -76,19 +76,26 @@ Keys while playing (RNG re-seeds on every switch, so only the
 variation itself changes — clean A/B):
 
 - `ESC` — quit
-- `1` — `techno` — minimal: 4-on-floor + off-beat hats only, root
-  bass, **one sparse motif locked for all 12 bars** (minimal-techno
-  repetition).
-- `2` — `dnb` — breakbeat drums + rolling 16th sub-bass, **16th-note
-  stab phrases** (separate bank, fresh per bar) + octave harmony.
-- `3` — `daft` — octave-pump bass + house drums, **one 2-bar hook
-  pair locked for the whole 12-bar loop** + octave harmony (Daft
-  Punk's locked-loop signature).
-- `4` — `90s+fills` — reference: rolling bass + dance drums + fresh
-  1-bar phrase from the main bank + 16th ornaments on channel 2.
-  Kept as the anchor to compare the new genre experiments against.
+All three "daft" variations share the same bass (octave pump), drums
+(house), melody mode (locked 2-bar hook with arch-shape octave lift),
+and harmony (octave up). Only the **progression** changes — so you
+can A/B what the harmonic structure alone does to the same musical
+material.
 
-All progressions are `I-III-IV-V` (A - C# - D - E) — all-major, no vi.
+- `1` — `daft-blues` — daft style over a **12-bar blues** (`I-IV-V`
+  compressed to half-bar resolution, looped twice). More harmonic
+  movement, classic blues shape.
+- `2` — `daft-vamp` — daft style over a **1-bar I-IV vamp**. Slowest
+  harmonic motion of the three — the locked hook and pumping bass
+  carry the piece, like a minimal-house loop.
+- `3` — `daft` — daft style over `I-III-IV-V` (unchanged reference
+  from round 7).
+- `4` — `90s+fills` — anchor from round 6: rolling bass + dance drums
+  + fresh-per-bar phrase from the main bank + 16th-note ornamental
+  fills on channel 2.
+
+All progressions stay all-major (I, III, IV, V in A are all major
+chords).
 
 ## What you'll hear
 

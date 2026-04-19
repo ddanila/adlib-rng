@@ -156,6 +156,27 @@ Phrase bank grew 8 → 16 entries (denser/more varied shapes).
     Gives the locked hook a classic "drop up for 4 bars" moment
     without breaking the loop feel.
 
+## Round 10 — harmony A/B: drop techno+dnb, make V1/V2 daft progression variants
+
+- **User**: "drop 1 and 2 and use these slots for the v3 variations.
+  I wonder if we can change the progression from the simple 4 chords
+  to the 12-bar blues one, keeping the other stuff and tonality?"
+- `techno` and `dnb` slots retired; the daft style (pump bass + house
+  drums + locked 2-bar hook + octave harmony) now fills V1-V3, with
+  the **only difference being the chord progression**, so the A/B
+  isolates what harmonic structure alone contributes.
+- `PROG_BLUES` restored (it was deleted in round 5 when we went all-
+  major; the standard I-IV-V 12-bar blues happens to be all-major in
+  a major key, so it fits the post-round-5 invariant).
+- `PROG_VAMP` added — one bar of I, one bar of IV, loop six times.
+  Slowest harmonic motion of the three; built to let the locked hook
+  and pumping bass dominate (minimal-house vibe).
+- Variation slots:
+  - V1 `daft-blues` — daft + `PROG_BLUES`
+  - V2 `daft-vamp`  — daft + `PROG_VAMP`
+  - V3 `daft`       — daft + `PROG_MAJ4` (unchanged)
+  - V4 `90s+fills`  — unchanged reference
+
 ## Invariants that settled along the way
 
 Things that got decided early-ish and haven't moved since:
