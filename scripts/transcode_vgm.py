@@ -597,7 +597,7 @@ def main() -> int:
     raw   = False
     want_legato = False
     no_clamp    = False
-    no_defer    = False
+    want_defer  = False
     while args and args[0].startswith("--"):
         flag = args.pop(0)
         if flag == "--trace":
@@ -608,15 +608,16 @@ def main() -> int:
             want_legato = True
         elif flag == "--no-clamp":
             no_clamp = True
-        elif flag == "--no-defer-keyoff":
-            no_defer = True
+        elif flag == "--defer-keyoff":
+            want_defer = True
         else:
             print(f"unknown flag: {flag}", file=sys.stderr)
             return 2
     if len(args) != 2:
         print(
             f"usage: {sys.argv[0]} "
-            f"[--raw | --legato | --no-clamp] [--trace] SRC.vgm DST.vgm",
+            f"[--raw | --legato | --no-clamp | --defer-keyoff] "
+            f"[--trace] SRC.vgm DST.vgm",
             file=sys.stderr,
         )
         return 2
@@ -669,7 +670,7 @@ def main() -> int:
                   "expect articulation to flatten)")
 
     t = Transcoder(analysis=analysis,
-                   defer_keyoff=not (raw or no_defer),
+                   defer_keyoff=want_defer and not raw,
                    trace=trace)
     total_samples = 0
     for ev in parse_commands(data, hdr.data_offset):
