@@ -28,7 +28,8 @@ WATCOM_LIB = $(WATCOM_DIR)/lib286/dos
 # -oi   = inline intrinsics (memset/memcpy)
 WCCFLAGS = -0 -ms -os -s -za99 -w4 -we -oi -i=$(WATCOM_H)
 
-SRC     = src/main.c src/opl2.c src/timer.c src/rng.c src/music.c src/display.c src/seeds.c
+SRC     = src/main.c src/opl2.c src/timer.c src/rng.c src/music.c \
+          src/display.c src/seeds.c src/player_rng.c src/player_vgm.c
 OBJ     = $(SRC:src/%.c=build/%.obj)
 HEADERS = $(wildcard src/*.h)
 EXE     = build/adlib.exe
@@ -71,9 +72,19 @@ build/dos/$(MSDOS_FLOPPY): | build
 
 floppy: $(FLOPPY_OUT)
 
-$(FLOPPY_OUT): $(EXE) $(FLOPPY_SRC)
+# Any .vgm files living under assets/ get shipped on the floppy under
+# their short uppercase names so you can launch them from DOS as
+# `ADLIB FOO.VGM`.
+VGM_SRCS  = $(wildcard assets/*.vgm)
+
+$(FLOPPY_OUT): $(EXE) $(FLOPPY_SRC) $(VGM_SRCS)
 	cp "$(FLOPPY_SRC)" $@
 	mcopy -i $@ -o $(EXE) ::ADLIB.EXE
+	@for f in $(VGM_SRCS); do \
+	  base=$$(basename "$$f" .vgm | tr 'a-z' 'A-Z'); \
+	  echo "  -> $$base.VGM"; \
+	  mcopy -i $@ -o "$$f" "::$$base.VGM"; \
+	done
 	@printf '@ECHO OFF\r\nADLIB\r\n' > build/AUTOEXEC.BAT
 	mcopy -i $@ -o build/AUTOEXEC.BAT ::AUTOEXEC.BAT
 	@echo "Floppy ready: $@"

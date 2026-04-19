@@ -24,43 +24,6 @@
 
 static unsigned char __far *vga = (unsigned char __far *)0;
 
-static void vga_init(void) {
-    vga = (unsigned char __far *)MK_FP(0xB800, 0x0000);
-}
-
-static void vga_clear(unsigned char attr) {
-    int i;
-    for (i = 0; i < 80 * 25; i++) {
-        vga[i * 2]     = ' ';
-        vga[i * 2 + 1] = attr;
-    }
-}
-
-static void vga_putc(int row, int col, unsigned char attr, char ch) {
-    int off;
-    if (row < 0 || row >= 25 || col < 0 || col >= 80) return;
-    off = (row * 80 + col) * 2;
-    vga[off]     = (unsigned char)ch;
-    vga[off + 1] = attr;
-}
-
-static void vga_puts(int row, int col, unsigned char attr, const char *s) {
-    while (*s && col < 80) {
-        vga_putc(row, col, attr, *s);
-        col++;
-        s++;
-    }
-}
-
-static void vga_printf(int row, int col, unsigned char attr, const char *fmt, ...) {
-    char buf[128];
-    va_list ap;
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    va_end(ap);
-    vga_puts(row, col, attr, buf);
-}
-
 static void hide_cursor(void) {
     union REGS r;
     r.h.ah = 0x01;
@@ -77,6 +40,65 @@ static void show_cursor(void) {
     int86(0x10, &r, &r);
 }
 
+void display_vga_clear(unsigned char attr) {
+    int i;
+    for (i = 0; i < 80 * 25; i++) {
+        vga[i * 2]     = ' ';
+        vga[i * 2 + 1] = attr;
+    }
+}
+
+void display_vga_putc(int row, int col, unsigned char attr, char ch) {
+    int off;
+    if (row < 0 || row >= 25 || col < 0 || col >= 80) return;
+    off = (row * 80 + col) * 2;
+    vga[off]     = (unsigned char)ch;
+    vga[off + 1] = attr;
+}
+
+void display_vga_puts(int row, int col, unsigned char attr, const char *s) {
+    while (*s && col < 80) {
+        display_vga_putc(row, col, attr, *s);
+        col++;
+        s++;
+    }
+}
+
+void display_vga_printf(int row, int col, unsigned char attr,
+                        const char *fmt, ...) {
+    char buf[128];
+    va_list ap;
+    va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+    va_end(ap);
+    display_vga_puts(row, col, attr, buf);
+}
+
+void display_vga_begin(void) {
+    vga = (unsigned char __far *)MK_FP(0xB800, 0x0000);
+    hide_cursor();
+    display_vga_clear(ATTR_NORMAL);
+}
+
+void display_vga_end(void) {
+    union REGS r;
+    show_cursor();
+    /* Move cursor to row 1 so the DOS prompt comes back below the
+     * banner most players print on exit. */
+    r.h.ah = 0x02;
+    r.h.bh = 0x00;
+    r.h.dh = 1;
+    r.h.dl = 0;
+    int86(0x10, &r, &r);
+}
+
+/* Back-compat shims for the RNG-specific layout (it uses the same
+ * short names everywhere; keeping them avoids a noisy churn). */
+#define vga_clear   display_vga_clear
+#define vga_putc    display_vga_putc
+#define vga_puts    display_vga_puts
+#define vga_printf  display_vga_printf
+
 static const char *NOTE_NAMES[12] = {
     "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#", "A ", "A#", "B "
 };
@@ -91,9 +113,7 @@ static void note_str(int midi, char *out) {
 
 void display_init(uint32_t seed) {
     int i;
-    vga_init();
-    hide_cursor();
-    vga_clear(ATTR_NORMAL);
+    display_vga_begin();
 
     vga_puts(0, 0, ATTR_TITLE, "adlib-rng");
     vga_printf(0, 24, ATTR_LABEL, "seed=");
@@ -228,14 +248,5 @@ void display_frame(int cur_bar, int cur_step, const bar_t *bar) {
 void display_cleanup(void) {
     vga_clear(ATTR_NORMAL);
     vga_puts(0, 0, ATTR_NORMAL, "adlib-rng: bye.");
-    show_cursor();
-    /* Move cursor to row 1 so DOS prompt comes back below the line. */
-    {
-        union REGS r;
-        r.h.ah = 0x02;
-        r.h.bh = 0x00;
-        r.h.dh = 1;
-        r.h.dl = 0;
-        int86(0x10, &r, &r);
-    }
+    display_vga_end();
 }
