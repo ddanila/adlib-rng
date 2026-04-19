@@ -18,23 +18,30 @@ DOS toolchain end-to-end on a modern Mac. Not a real music engine.
 
 ```
 src/
-  main.c          thin dispatcher — picks a player from argv, runs the
-                  tick/key loop
-  player.{h}      vtable shared by every playback engine
-                  (init / tick / on_key / cleanup)
-  player_rng.c    the algorithmic chiptune generator (default player)
-  player_vgm.c    VGM file reader — stub so far, see "VGM mode" below
-  opl2.{h,c}      OPL2 register driver and instrument patches
-  timer.{h,c}     IRQ0 hook for sub-BIOS-tick timing (1 ms resolution)
-  rng.{h,c}       deterministic xorshift32
-  music.{h,c}     scale, chord progression, pattern generator
-  display.{h,c}   VGA text-mode primitives + RNG-player layout
+  main.c            thin dispatcher — picks a player from argv, runs the
+                    tick/key loop
+  player.{h}        vtable shared by every playback engine
+                    (init / tick / on_key / cleanup)
+  player_rng.c      the algorithmic chiptune generator (default player)
+  player_vgm.c      streaming VGM reader — plays OPL2-native files
+  opl2.{h,c}        OPL2 register driver and instrument patches
+  timer.{h,c}       IRQ0 hook for sub-BIOS-tick timing (1 ms resolution)
+  rng.{h,c}         deterministic xorshift32
+  music.{h,c}       scale, chord progression, pattern generator
+  display.{h,c}     VGA text-mode primitives + RNG-player layout
+sources/
+  *.vgm             OPL3 originals (not shipped on the floppy). The
+                    transcoder folds these into assets/.
 assets/
-  *.vgm           tracker dumps; auto-copied onto the floppy as 8.3
-                  uppercase filenames (FOO.vgm -> FOO.VGM)
+  *.vgm             OPL2-native VGMs ready for the floppy. Auto-copied
+                    as 8.3 uppercase (assets/foo.vgm -> FOO.VGM;
+                    longer basenames are truncated to 8 chars).
 scripts/
-  run.sh          QEMU launcher with AdLib audio device
-Makefile          OpenWatcom build + floppy packaging
+  run.sh            QEMU launcher with AdLib audio device
+  make_test_vgm.py  emits assets/testopl.vgm for smoke-testing the
+                    VGM player
+  transcode_vgm.py  OPL3 -> OPL2 transcoder (voice-allocating fold)
+Makefile            OpenWatcom build + floppy packaging + vgms target
 ```
 
 ## Requirements
@@ -141,34 +148,41 @@ What works today (**stage #2a**):
 - shows a progress bar, elapsed/total time, and the declared chip
   clocks while it plays.
 
-What doesn't (yet):
+### OPL3 originals → OPL2 assets
 
-- **OPL3 dumps are refused.** AdLib hardware is OPL2-only, and the
-  port-1 register bank (channels 9-17, 4-op, stereo) has no
-  equivalent on the chip — folding 18 voices down to 9 is a musical
-  decision that belongs in the host-side transcoder, not the DOS
-  player. See stage #2b below.
+OPL3 dumps (YMF262) are refused by the DOS player — AdLib hardware
+is OPL2 only, and the port-1 register bank (channels 9-17, 4-op,
+stereo) has no equivalent on the chip. Instead, drop OPL3 files into
+`sources/` and run the host-side transcoder:
+
+```sh
+make vgms           # rebuilds assets/*.vgm from sources/*.vgm
+# or explicitly:
+python3 scripts/transcode_vgm.py sources/suspense.vgm assets/suspense.vgm
+```
+
+The transcoder (**stage #2b**) walks the source stream with a virtual
+OPL3 model (all 18 channels, full per-operator patch, fnum, key
+state), and at every key-on transition dynamically allocates an OPL2
+voice — taking a free one when available, else LRU-stealing the dst
+channel whose current note started longest ago, so a sustained pad
+gets sacrificed before a fresh transient. For `sources/suspense.vgm`
+it folds 2968 key-ons onto 9 voices with 58 steals and **0 dropped
+notes**.
 
 ### Generating a test VGM
 
 `scripts/make_test_vgm.py` emits `assets/testopl.vgm` — an A-major
-pentatonic scale, one voice, 5 s — enough to smoke-test the engine
-without waiting on the transcoder.
+pentatonic scale, one voice, ~5 s — for smoke-testing the engine
+without going through the transcoder.
 
 ```sh
-python3 scripts/make_test_vgm.py
+make vgms
 make floppy && make run
 # at the DOS prompt (ESC out of the RNG first):
 A:> ADLIB TESTOPL.VGM
+A:> ADLIB SUSPENSE.VGM
 ```
-
-### Roadmap
-
-- **#2b — OPL3→OPL2 transcoder (TODO).** Host-side Python tool that
-  reads an OPL3 VGM, simulates register state, and re-emits an
-  OPL2-native VGM. Voice folding is allocation-based rather than
-  naive drop-port-1, so notes should survive whenever there's a free
-  AdLib voice.
 
 ### Adding a new player
 

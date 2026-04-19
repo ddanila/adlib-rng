@@ -72,10 +72,22 @@ build/dos/$(MSDOS_FLOPPY): | build
 
 floppy: $(FLOPPY_OUT)
 
-# Any .vgm files living under assets/ get shipped on the floppy under
-# their short uppercase names so you can launch them from DOS as
-# `ADLIB FOO.VGM`.
-VGM_SRCS  = $(wildcard assets/*.vgm)
+# Everything under assets/ gets shipped on the floppy with an 8.3
+# uppercase filename. OPL3 originals live under sources/ and are
+# folded to OPL2 via scripts/transcode_vgm.py. Run `make vgms` to
+# regenerate the derived files from the sources.
+VGM_SRCS     = $(wildcard assets/*.vgm)
+VGM_SOURCES  = $(wildcard sources/*.vgm)
+VGM_TRANSCODED = $(patsubst sources/%.vgm,assets/%.vgm,$(VGM_SOURCES))
+
+assets/%.vgm: sources/%.vgm scripts/transcode_vgm.py
+	python3 scripts/transcode_vgm.py $< $@
+
+assets/testopl.vgm: scripts/make_test_vgm.py
+	python3 scripts/make_test_vgm.py
+
+.PHONY: vgms
+vgms: $(VGM_TRANSCODED) assets/testopl.vgm
 
 $(FLOPPY_OUT): $(EXE) $(FLOPPY_SRC) $(VGM_SRCS)
 	cp "$(FLOPPY_SRC)" $@
