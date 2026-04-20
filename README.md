@@ -35,7 +35,8 @@ make run
 On a fresh clone this compiles `ADLIB.EXE`, wraps it onto the
 vendored MS-DOS floppy alongside the committed VGMs + `AUTOEXEC.BAT`,
 and boots QEMU with the AdLib device attached. `AUTOEXEC.BAT` starts
-playback of `SUSPENSE.VGM`; hit `ESC` to get to the DOS prompt.
+the RNG chiptune generator; hit `ESC` to get to the DOS prompt and
+try other variants (`ADLIB SUSPENSE.VGM`, `ADLIB ADRIAN.VGM`, …).
 
 See [NOTES.md](NOTES.md#build-targets) for the rest of the `make`
 targets (`vgms`, `floppy`, `clean`) and for overriding the floppy

@@ -84,7 +84,7 @@ $(FLOPPY_OUT): $(EXE) $(FLOPPY_SRC) $(VGM_SRCS)
 	  echo "  -> $$base.VGM"; \
 	  mcopy -i $@ -o "$$f" "::$$base.VGM"; \
 	done
-	@printf '@ECHO OFF\r\nADLIB SUSPENSE.VGM\r\n' > build/AUTOEXEC.BAT
+	@printf '@ECHO OFF\r\nADLIB\r\n' > build/AUTOEXEC.BAT
 	mcopy -i $@ -o build/AUTOEXEC.BAT ::AUTOEXEC.BAT
 	@echo "Floppy ready: $@"
 
