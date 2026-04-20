@@ -6,6 +6,7 @@ build/
 *.map
 *.lst
 *.err
-*.img
+# Ignore generated floppy images under build/, not the vendored source.
+/build/*.img
 .DS_Store
 __pycache__/
