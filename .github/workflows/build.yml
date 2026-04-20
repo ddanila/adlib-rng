@@ -1,0 +1,28 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  floppy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mtools
+
+      - name: Build ADLIB.EXE and pack the floppy
+        run: make floppy
+
+      - name: Upload floppy image
+        uses: actions/upload-artifact@v4
+        with:
+          name: adlib-floppy
+          path: build/adlib.img
+          if-no-files-found: error
