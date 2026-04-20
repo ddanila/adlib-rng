@@ -12,12 +12,11 @@ end-to-end on a modern Mac.
 
 - **`mtools`** (`mcopy`, `mformat`)
 - **`qemu-system-i386`**
-- **`gh`** (only for the first `make floppy`, which fetches the DOS
-  boot image from the [ddanila/msdos release](https://github.com/ddanila/msdos/releases))
 
-Open Watcom v2 is already vendored under `vendor/openwatcom-v2/` —
-no external install needed. See [NOTES.md](NOTES.md#refreshing-the-open-watcom-vendor-bundle)
-for how to refresh it.
+Open Watcom v2 and the MS-DOS boot floppy are both vendored under
+`vendor/` — no external install or network needed to build. See
+[NOTES.md](NOTES.md#refreshing-vendor-bundles) for how to refresh
+them.
 
 ## Build & run
 
@@ -29,7 +28,7 @@ make run       # boot in QEMU; AUTOEXEC.BAT starts ADLIB SUSPENSE.VGM
 make clean
 ```
 
-Override the DOS image with `make floppy FLOPPY_SRC=/path/to/dos.img`.
+Override the DOS image with `make floppy FLOPPY_SRC=/path/to/other.img`.
 
 ## Usage
 

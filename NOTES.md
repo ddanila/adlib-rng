@@ -33,6 +33,7 @@ scripts/
   vendor_openwatcom.sh   refresh the vendored OpenWatcom snapshot
 vendor/
   openwatcom-v2/         OpenWatcom v2 host tools (see its README.md)
+  msdos/                 MS-DOS 4.0 boot floppy image (see its README.md)
 Makefile                 OpenWatcom build + floppy packaging + vgms target
 ```
 
@@ -157,7 +158,9 @@ Implement the `player_t` vtable in `src/player.h` and wire it into
 `main.c`'s argv dispatch. Each player owns its own display layout on
 top of the `display_vga_*` primitives in `display.h`.
 
-## Refreshing the Open Watcom vendor bundle
+## Refreshing vendor bundles
+
+### Open Watcom v2
 
 ```sh
 scripts/vendor_openwatcom.sh
@@ -170,3 +173,17 @@ prints fresh SHA-256s. After it finishes, bump the `WATCOM_DIR`
 default in the `Makefile` to the new date and delete the previous
 directory. See the vendor bundle's own `README.md` for the full
 per-file mapping.
+
+### MS-DOS boot floppy
+
+The image under `vendor/msdos/floppy-minimal.img` comes from the
+[`ddanila/msdos`](https://github.com/ddanila/msdos/releases) release.
+To refresh it (only if the upstream image changes):
+
+```sh
+gh release download 0.1 --repo ddanila/msdos \
+    --pattern floppy-minimal.img --dir vendor/msdos --clobber
+shasum -a 256 vendor/msdos/floppy-minimal.img
+```
+
+Paste the new checksum into `vendor/msdos/README.md`.

@@ -34,19 +34,19 @@ OBJ     = $(SRC:src/%.c=build/%.obj)
 HEADERS = $(wildcard src/*.h)
 EXE     = build/adlib.exe
 
-# Bootable MS-DOS 4.0 floppy. Pulled as a release asset from the
-# ddanila/msdos project. Override FLOPPY_SRC to use your own image.
-MSDOS_RELEASE   ?= 0.1
-MSDOS_FLOPPY    ?= floppy-minimal.img
-FLOPPY_SRC      ?= build/dos/$(MSDOS_FLOPPY)
+# Bootable MS-DOS 4.0 floppy — vendored under vendor/msdos/ so
+# `make floppy` never hits the network. Override FLOPPY_SRC to use a
+# different image. See vendor/msdos/README.md for the source and
+# refresh instructions.
+FLOPPY_SRC      ?= vendor/msdos/floppy-minimal.img
 FLOPPY_OUT       = build/adlib.img
 
-.PHONY: all clean run floppy fetch-floppy
+.PHONY: all clean run floppy
 
 all: $(EXE)
 
 build:
-	@mkdir -p build build/dos
+	@mkdir -p build
 
 # Conservative: rebuild every TU when any header changes. With 6 TUs
 # and tiny compile times this is fine, and it avoids the bar_t-size
@@ -56,19 +56,6 @@ build/%.obj: src/%.c $(HEADERS) | build
 
 $(EXE): $(OBJ)
 	$(WLINK) name $@ format dos $(addprefix file ,$(OBJ)) libpath $(WATCOM_LIB) library clibs.lib
-
-fetch-floppy: $(FLOPPY_SRC)
-
-# Cached download from the ddanila/msdos release. Re-run with
-# `rm -rf build/dos` if you want to refetch.
-build/dos/$(MSDOS_FLOPPY): | build
-	@if ! command -v gh >/dev/null 2>&1; then \
-	  echo "ERROR: gh CLI not found. Install it (brew install gh) or set FLOPPY_SRC=/path/to/img."; \
-	  exit 1; \
-	fi
-	@echo "Fetching $(MSDOS_FLOPPY) from ddanila/msdos@$(MSDOS_RELEASE)..."
-	@mkdir -p build/dos
-	gh release download $(MSDOS_RELEASE) --repo ddanila/msdos --pattern $(MSDOS_FLOPPY) --dir build/dos --clobber
 
 floppy: $(FLOPPY_OUT)
 
