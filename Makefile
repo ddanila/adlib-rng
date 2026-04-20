@@ -1,7 +1,7 @@
 # adlib-rng — build a 16-bit DOS .EXE with OpenWatcom v2 and pack it
 # onto an MS-DOS 4.0 boot floppy for QEMU.
 
-WATCOM_DIR ?= $(HOME)/fun/beta_kappa/vendor/openwatcom-v2/current-build-2026-04-04
+WATCOM_DIR ?= vendor/openwatcom-v2/current-build-2026-04-20
 HOST_OS    := $(shell uname -s)
 HOST_ARCH  := $(shell uname -m)
 ifeq ($(HOST_OS),Darwin)

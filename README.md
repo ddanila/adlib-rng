@@ -48,10 +48,14 @@ Makefile            OpenWatcom build + floppy packaging + vgms target
 
 Host tools (macOS or Linux):
 
-- **OpenWatcom v2** — used as a 16-bit DOS cross-compiler. The
-  Makefile defaults to a build at
-  `~/fun/beta_kappa/vendor/openwatcom-v2/current-build-2026-04-04`.
-  Override with `WATCOM_DIR=...` if yours lives elsewhere.
+- **Open Watcom v2** — used as a 16-bit DOS cross-compiler. A trimmed
+  snapshot of the `Current-build` release is vendored in
+  `vendor/openwatcom-v2/current-build-<date>/`, so `make` works with
+  no external install. To refresh, run
+  `scripts/vendor_openwatcom.sh` (needs `gh`) and bump the
+  `WATCOM_DIR` default in the `Makefile` to the new date. Override
+  with `WATCOM_DIR=/path/to/other/openwatcom` if you want to use an
+  external install.
 - **mtools** (`mcopy`, `mformat`) — to inject `ADLIB.EXE` into a
   bootable DOS floppy image without mounting anything.
 - **qemu-system-i386** — emulates the PC and its OPL2.
