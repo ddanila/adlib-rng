@@ -4,6 +4,13 @@
 #include <stdint.h>
 #include "music.h"
 
+/* Universal colour attributes every player uses. Byte layout:
+ * (bg << 4) | fg; 0x0-0xF foreground palette. */
+#define ATTR_NORMAL  0x07   /* light gray on black   */
+#define ATTR_TITLE   0x0F   /* bright white          */
+#define ATTR_LABEL   0x08   /* dark gray             */
+#define ATTR_VALUE   0x0E   /* yellow                */
+
 /* Low-level VGA text-mode primitives (80x25 colour buffer at
  * B800:0000). Shared across all players — each player composes its
  * own layout on top of these. Row/col are 0-based. */

@@ -52,4 +52,9 @@ extern const opl_instr_t OPL_INSTR_RHY_BD;
 extern const opl_instr_t OPL_INSTR_RHY_SD_HH;
 extern const opl_instr_t OPL_INSTR_RHY_TT_TC;
 
+/* F-numbers for one octave (C..B). Tuned for A=440 Hz at block=4.
+ * The block field of register 0xBn selects the octave, so a single
+ * 12-entry table serves every octave. */
+extern const uint16_t OPL_FNUMS[12];
+
 #endif

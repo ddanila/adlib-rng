@@ -5,20 +5,17 @@
 #include <stdarg.h>
 #include <i86.h>
 
-/* Direct VGA text-mode video buffer at 0xB800:0000.
- * Each cell is two bytes: ASCII then attribute (bg<<4 | fg). */
-#define ATTR_NORMAL  0x07   /* light gray on black                 */
-#define ATTR_TITLE   0x0F   /* bright white                        */
-#define ATTR_LABEL   0x08   /* dark gray                           */
-#define ATTR_VALUE   0x0E   /* yellow                              */
-#define ATTR_KICK    0x0C   /* light red                           */
-#define ATTR_SNARE   0x0D   /* magenta                             */
-#define ATTR_HAT     0x0B   /* light cyan                          */
-#define ATTR_MEL     0x0A   /* light green                         */
-#define ATTR_BASS    0x09   /* light blue                          */
+/* Direct VGA text-mode video buffer at 0xB800:0000. Universal
+ * ATTR_NORMAL / ATTR_TITLE / ATTR_LABEL / ATTR_VALUE come from
+ * display.h; everything below is specific to the RNG-player grid. */
+#define ATTR_KICK    0x0C   /* light red    */
+#define ATTR_SNARE   0x0D   /* magenta      */
+#define ATTR_HAT     0x0B   /* light cyan   */
+#define ATTR_MEL     0x0A   /* light green  */
+#define ATTR_BASS    0x09   /* light blue   */
 #define ATTR_BARLINE 0x08
-#define ATTR_CURSOR  0x70   /* black on light gray (inverse)       */
-#define ATTR_CURBAR  0x1F   /* white on blue                       */
+#define ATTR_CURSOR  0x70   /* black on light gray (inverse) */
+#define ATTR_CURBAR  0x1F   /* white on blue */
 
 static unsigned char __far *vga = (unsigned char __far *)0;
 

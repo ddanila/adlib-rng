@@ -32,10 +32,7 @@ void opl_init(void) {
     opl_reset();
 }
 
-/* F-numbers for one octave. The block field of register 0xBn selects
- * the octave separately, so a single 12-entry table suffices for all
- * octaves. Tuned for A=440Hz at block=4. */
-static const uint16_t FNUMS[12] = {
+const uint16_t OPL_FNUMS[12] = {
     /* C    C#   D    D#   E    F    F#   G    G#   A    A#   B   */
     0x158, 0x16B, 0x181, 0x198, 0x1B0, 0x1CA, 0x1E5, 0x202, 0x220, 0x241, 0x263, 0x287
 };
@@ -63,7 +60,7 @@ void opl_note_on(int ch, int midi_note) {
     if (octave < 0) octave = 0;
     if (octave > 7) octave = 7;
     block = octave;
-    fnum  = FNUMS[semi];
+    fnum  = OPL_FNUMS[semi];
 
     low  = (uint8_t)(fnum & 0xFF);
     high = (uint8_t)(((fnum >> 8) & 0x03) | (block << 2) | 0x20);  /* key-on */

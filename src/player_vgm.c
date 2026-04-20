@@ -15,14 +15,12 @@
  * OPL3 files are refused here; folding 18 channels down to 9 is done
  * offline by scripts/transcode_vgm.py. */
 
-#define ATTR_NORMAL   0x07
-#define ATTR_TITLE    0x0F
-#define ATTR_LABEL    0x08
-#define ATTR_VALUE    0x0E
-#define ATTR_ON       0x0A
-#define ATTR_OFF      0x08
-#define ATTR_WARN     0x0C
-#define ATTR_BAR      0x0B
+/* ATTR_NORMAL / ATTR_TITLE / ATTR_LABEL / ATTR_VALUE come from
+ * display.h. The rest below are VGM-HUD specific. */
+#define ATTR_ON       0x0A   /* active / playing, light green    */
+#define ATTR_OFF      0x08   /* idle, same dark grey as ATTR_LABEL */
+#define ATTR_WARN     0x0C   /* warnings / muted row, light red  */
+#define ATTR_BAR      0x0B   /* progress-bar fill, light cyan    */
 #define ATTR_KNOB     0x0B
 #define PROGRESS_W    60
 
@@ -125,11 +123,6 @@ static int g_k_experiment = EXP_AUTO_BASS;
  *  OPL register-geometry helpers.                                    *
  * ------------------------------------------------------------------ */
 
-static const uint16_t FNUMS[12] = {
-    0x158, 0x16B, 0x181, 0x198, 0x1B0, 0x1CA,
-    0x1E5, 0x202, 0x220, 0x241, 0x263, 0x287
-};
-
 static const char * const NOTE_NAMES[12] = {
     "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#", "A ", "A#", "B "
 };
@@ -162,7 +155,7 @@ static int fnum_to_semi(uint16_t fnum) {
     int i, best = 0;
     int best_diff = 32767;
     for (i = 0; i < 12; i++) {
-        int diff = (int)fnum - (int)FNUMS[i];
+        int diff = (int)fnum - (int)OPL_FNUMS[i];
         if (diff < 0) diff = -diff;
         if (diff < best_diff) { best_diff = diff; best = i; }
     }
