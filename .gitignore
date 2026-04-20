@@ -8,3 +8,4 @@ build/
 *.err
 *.img
 .DS_Store
+__pycache__/
