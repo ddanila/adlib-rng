@@ -13,6 +13,14 @@ end-to-end on a modern Mac.
 - **`mtools`** (`mcopy`, `mformat`)
 - **`qemu-system-i386`**
 
+```sh
+# macOS
+brew install mtools qemu
+
+# Debian / Ubuntu
+sudo apt install mtools qemu-system-x86
+```
+
 Open Watcom v2 and the MS-DOS boot floppy are both vendored under
 `vendor/` — no external install or network needed to build. See
 [NOTES.md](NOTES.md#refreshing-vendor-bundles) for how to refresh
