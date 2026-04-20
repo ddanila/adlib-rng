@@ -3,6 +3,29 @@
 Longer-form detail that doesn't fit in the README. Read the README
 first for the 60-second overview.
 
+## Build targets
+
+```sh
+make           # build/adlib.exe only
+make vgms      # (re)transcode sources/*.vgm → assets/*.vgm and
+               # regenerate assets/testopl.vgm via the test helper
+make floppy    # build/adlib.img — DOS floppy with the EXE + the VGMs
+make run       # everything above + boot QEMU (default target for use)
+make clean     # rm -rf build/
+```
+
+Override the DOS boot image:
+
+```sh
+make floppy FLOPPY_SRC=/path/to/other.img
+```
+
+Override the Open Watcom location:
+
+```sh
+make WATCOM_DIR=/path/to/other/openwatcom
+```
+
 ## Source layout
 
 ```

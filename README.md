@@ -26,17 +26,20 @@ Open Watcom v2 and the MS-DOS boot floppy are both vendored under
 [NOTES.md](NOTES.md#refreshing-vendor-bundles) for how to refresh
 them.
 
-## Build & run
+## Run
 
 ```sh
-make           # build/adlib.exe
-make vgms      # (re)transcode sources/*.vgm → assets/*.vgm
-make floppy    # build/adlib.img — DOS floppy with the EXE + the VGMs
-make run       # boot in QEMU; AUTOEXEC.BAT starts ADLIB SUSPENSE.VGM
-make clean
+make run
 ```
 
-Override the DOS image with `make floppy FLOPPY_SRC=/path/to/other.img`.
+On a fresh clone this compiles `ADLIB.EXE`, wraps it onto the
+vendored MS-DOS floppy alongside the committed VGMs + `AUTOEXEC.BAT`,
+and boots QEMU with the AdLib device attached. `AUTOEXEC.BAT` starts
+playback of `SUSPENSE.VGM`; hit `ESC` to get to the DOS prompt.
+
+See [NOTES.md](NOTES.md#build-targets) for the rest of the `make`
+targets (`vgms`, `floppy`, `clean`) and for overriding the floppy
+image.
 
 ## Usage
 
