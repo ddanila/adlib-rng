@@ -41,9 +41,16 @@ EXE     = build/adlib.exe
 FLOPPY_SRC      ?= vendor/msdos/floppy-minimal.img
 FLOPPY_OUT       = build/adlib.img
 
-.PHONY: all clean run floppy
+.PHONY: all clean run floppy refresh-watcom
 
 all: $(EXE)
+
+# Download the latest Open Watcom v2 Current-build snapshot into a
+# dated vendor/openwatcom-v2/current-build-<date>/ directory. After
+# it runs, bump WATCOM_DIR above to the new date (and delete the
+# old directory). See scripts/vendor_openwatcom.sh for details.
+refresh-watcom:
+	bash scripts/vendor_openwatcom.sh
 
 build:
 	@mkdir -p build

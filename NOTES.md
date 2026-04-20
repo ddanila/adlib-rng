@@ -6,12 +6,14 @@ first for the 60-second overview.
 ## Build targets
 
 ```sh
-make           # build/adlib.exe only
-make vgms      # (re)transcode sources/*.vgm → assets/*.vgm and
-               # regenerate assets/testopl.vgm via the test helper
-make floppy    # build/adlib.img — DOS floppy with the EXE + the VGMs
-make run       # everything above + boot QEMU (default target for use)
-make clean     # rm -rf build/
+make                # build/adlib.exe only
+make vgms           # (re)transcode sources/*.vgm → assets/*.vgm and
+                    # regenerate assets/testopl.vgm via the test helper
+make floppy         # build/adlib.img — DOS floppy with the EXE + the VGMs
+make run            # everything above + boot QEMU (default target for use)
+make clean          # rm -rf build/
+make refresh-watcom # download the latest Open Watcom snapshot into a
+                    # new vendor/openwatcom-v2/current-build-<date>/
 ```
 
 Override the DOS boot image:
