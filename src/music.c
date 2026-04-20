@@ -15,28 +15,24 @@ static const int8_t PROG_MAJ4[PROG_LEN] = {
     0, 4,  5, 7,   0, 4,  5, 7,   0, 4,  5, 7
 };
 
-/* Standard 12-bar blues (I-IV-V in A = A-D-E, all major) compressed
- * to half-bar resolution so the 12-chord round fits in 6 bars, then
- * looped twice to fill our 12-bar window. Half-bar layout of one
- * round:  I I | I I | IV IV | I I | V IV | I V
- * All three chord roots are major in A major, so this stays inside
- * the all-major invariant. */
+/* 12-bar blues (I-IV-V in A = A-D-E, all major) compressed to half-bar
+ * resolution so one round fits in 6 bars, looped twice. Half-bar layout
+ * of one round:  I I | I I | IV IV | I I | V IV | I V. */
 static const int8_t PROG_BLUES[PROG_LEN] = {
     0, 0,  0, 0,  5, 5,  0, 0,  7, 5,  0, 7,
     0, 0,  0, 0,  5, 5,  0, 0,  7, 5,  0, 7
 };
 
-/* Minimal house vamp: one bar of I, one bar of IV, loop six times.
- * Slowest harmonic motion of the three — lets the locked hook and
- * the pumping bass carry the piece. */
+/* Minimal house vamp: 1 bar of I, 1 bar of IV, loop six times. Slowest
+ * harmonic motion of the three — the locked hook and pumping bass carry
+ * the piece. */
 static const int8_t PROG_VAMP[PROG_LEN] = {
     0, 0,  5, 5,  0, 0,  5, 5,  0, 0,  5, 5,
     0, 0,  5, 5,  0, 0,  5, 5,  0, 0,  5, 5
 };
 
 /* Melody phrase bank. Each phrase is 8 eighth-note slots holding
- * scale-degree indices (0..SCALE_LEN-1) or -1 for a rest. Mix of
- * sparse/dense and ascending/descending to give the RNG real options. */
+ * scale-degree indices (0..SCALE_LEN-1) or -1 for a rest. */
 #define PHRASE_LEN   8
 #define PHRASE_COUNT 20
 static const int8_t PHRASE_BANK[PHRASE_COUNT][PHRASE_LEN] = {
@@ -83,108 +79,55 @@ static const int8_t PHRASE_PAIR_BANK[PHRASE_PAIR_COUNT][2] = {
 };
 
 typedef enum {
-    BASS_ROOTS   = 0,
-    BASS_WALKING = 1,
-    BASS_ROLLING = 2,
-    BASS_PUMP    = 3    /* octave jumps on 8ths — funk / Daft Punk bass */
+    BASS_ROLLING = 0,   /* 16th-note root hits + occasional octave bumps */
+    BASS_PUMP    = 1    /* octave jumps on 8ths — french-house bass      */
 } bass_mode_t;
-typedef enum {
-    DRUMS_ROCK   = 0,
-    DRUMS_DANCE  = 1,
-    DRUMS_TECHNO = 2,   /* 4-on-floor + off-beat hats only, no snare    */
-    DRUMS_BREAK  = 3    /* breakbeat: syncopated kicks + snare ghosts   */
-} drum_pattern_t;
-/* melody_mode: how the solo line is generated. Each variation gets
- * its own strategy so the melody stops sounding identical across
- * genres.
- *   FRESH_PHRASE  — random 1-bar phrase from PHRASE_BANK every bar
- *                   (the previous universal behaviour; kept for V4)
- *   MINIMAL_LOOP  — pick ONE phrase from MINIMAL_BANK (sparse, 2-3
- *                   notes per bar) and repeat it for all 12 bars —
- *                   real minimal-techno behaviour
- *   STAB_16TH     — random phrase from a separate 16-slot bank on
- *                   the 16th-note grid — faster, stab-like
- *   HOOK_2BAR     — pick ONE 2-bar phrase pair from PHRASE_PAIR_BANK
- *                   and repeat it across the 6 pair-slots in the
- *                   12-bar loop — Daft Punk's locked-hook signature
+
+/* melody_mode:
+ *   FRESH_PHRASE — random 1-bar phrase from PHRASE_BANK every bar.
+ *   HOOK_2BAR    — pick 6 random phrase pairs (one per pair-slot) plus
+ *                  6 independent octave shifts and loop them across the
+ *                  12-bar round — locked-hook signature.
  */
 typedef enum {
     MEL_FRESH_PHRASE = 0,
-    MEL_MINIMAL_LOOP = 1,
-    MEL_STAB_16TH    = 2,
-    MEL_HOOK_2BAR    = 3
+    MEL_HOOK_2BAR    = 1
 } melody_mode_t;
 
-/* lead2_mode: what the second melodic voice (ch 2) does.
- *   NONE     — silent
- *   HARMONY  — doubles the melody one octave up
- *   FILLS    — 16th-note ornaments between main phrase notes
+/* lead2_mode: what the second melodic voice does.
+ *   HARMONY — double the melody one octave up.
+ *   FILLS   — 16th-note ornaments between main phrase notes.
  */
-typedef enum { LEAD2_NONE = 0, LEAD2_HARMONY = 1, LEAD2_FILLS = 2 } lead2_mode_t;
+typedef enum {
+    LEAD2_HARMONY = 0,
+    LEAD2_FILLS   = 1
+} lead2_mode_t;
 
 typedef struct {
     const char    *name;
     const int8_t  *progression;
     bass_mode_t    bass_mode;
-    drum_pattern_t drum_pattern;
     melody_mode_t  melody_mode;
     lead2_mode_t   lead2_mode;
 } variation_t;
 
-/* V1-V3 are all the "daft" style (pump bass + house drums + locked
- * 2-bar hook + octave harmony) over three different progressions,
- * so you can compare what only the harmony structure does. V4 stays
- * as the round-7 reference "90s+fills" anchor. */
+/* V1-V3 share bass (pump), drums (dance), melody mode (locked hook),
+ * and harmony (octave up); only the progression differs — so the A/B
+ * isolates what the harmonic structure alone does to the same musical
+ * material. V4 swaps in rolling bass + fresh phrases + 16th-note fills
+ * as a reference contrast. */
 static const variation_t VARIATIONS[NUM_VARIATIONS] = {
-    { "daft-blues",PROG_BLUES,BASS_PUMP,    DRUMS_DANCE,  MEL_HOOK_2BAR,    LEAD2_HARMONY },
-    { "daft-vamp", PROG_VAMP, BASS_PUMP,    DRUMS_DANCE,  MEL_HOOK_2BAR,    LEAD2_HARMONY },
-    { "daft",      PROG_MAJ4, BASS_PUMP,    DRUMS_DANCE,  MEL_HOOK_2BAR,    LEAD2_HARMONY },
-    { "90s+fills", PROG_MAJ4, BASS_ROLLING, DRUMS_DANCE,  MEL_FRESH_PHRASE, LEAD2_FILLS   }
+    { "daft-blues", PROG_BLUES, BASS_PUMP,    MEL_HOOK_2BAR,    LEAD2_HARMONY },
+    { "daft-vamp",  PROG_VAMP,  BASS_PUMP,    MEL_HOOK_2BAR,    LEAD2_HARMONY },
+    { "daft",       PROG_MAJ4,  BASS_PUMP,    MEL_HOOK_2BAR,    LEAD2_HARMONY },
+    { "90s+fills",  PROG_MAJ4,  BASS_ROLLING, MEL_FRESH_PHRASE, LEAD2_FILLS   }
 };
 
 static const char *VARIATION_DESC[NUM_VARIATIONS] = {
-    "daft style over 12-bar blues (I-IV-V), same everything else",
+    "daft style over 12-bar blues (I-IV-V)",
     "daft style over a minimal I-IV 1-bar vamp (slow harmonic motion)",
-    "daft style over I-III-IV-V (from round 7 — reference daft)",
-    "ref: rolling bass + dance drums + fresh-per-bar phrase + fills"
-};
-
-/* Minimal techno phrase bank — still minimal compared to the main
- * bank but now 3-7 notes per phrase (previous 1-3 was too empty).
- * Shares the 8-slot eighth-note grid. */
-#define MINIMAL_LEN   8
-#define MINIMAL_COUNT 10
-static const int8_t MINIMAL_BANK[MINIMAL_COUNT][MINIMAL_LEN] = {
-    { 0, -1, -1,  4, -1,  2, -1,  4 },   /* 4 notes — root → 5 → 3 → 5  */
-    { -1, 2, -1,  4, -1,  2, -1,  4 },   /* 4 syncopated: 3-5-3-5       */
-    { 0,  2, -1,  4, -1,  2, -1, -1 },   /* 4 ascending with rests      */
-    { 0, -1,  4, -1,  2, -1,  0, -1 },   /* 4 alternating root-5-3-root */
-    { 4,  2,  0, -1,  4,  2,  0, -1 },   /* 6 descending × 2            */
-    { 0, -1,  2,  4, -1,  2, -1,  0 },   /* 5 notes, varied rhythm      */
-    { 2,  0,  2,  4,  0,  2,  0, -1 },   /* 7 notes, steady loop        */
-    { 0,  4, -1,  2,  4,  0, -1,  4 },   /* 6 jumpy                     */
-    { 0,  2,  4,  2,  0,  2,  4,  2 },   /* 8 pendulum                  */
-    { 2, -1,  4,  0,  2, -1,  4, -1 }    /* 5 staccato                  */
-};
-
-/* 16th-note stab bank for DnB. 16 slots per bar, each = 4 substeps. */
-#define STAB_LEN   16
-#define STAB_COUNT 14
-static const int8_t STAB_BANK[STAB_COUNT][STAB_LEN] = {
-    { 0, -1,  2, -1,  4, -1, -1, -1,  0, -1, -1, -1,  4, -1,  2, -1 },
-    { 0,  2, -1, -1,  4, -1, -1, -1,  0,  2, -1,  4, -1, -1, -1, -1 },
-    { -1, 0, -1,  4, -1,  2, -1, -1, -1,  0, -1,  4, -1,  2, -1, -1 },
-    { 4,  4, -1, -1,  2,  2, -1, -1,  0,  0, -1, -1,  2,  4, -1, -1 },
-    { 0, -1, -1, -1,  4, -1, -1, -1,  2, -1, -1, -1,  0, -1, -1, -1 },
-    { -1, 0,  2, -1, -1,  2,  0, -1, -1,  4,  2, -1, -1,  0, -1, -1 },
-    { 0,  2,  0,  2,  0,  2,  4,  2,  0,  4,  0,  4,  2,  0,  2,  4 },
-    { 0, -1,  0,  4, -1, -1,  4, -1,  2, -1,  0,  2, -1, -1,  0, -1 },
-    { 4, -1,  4, -1,  0,  0, -1, -1,  2, -1,  2, -1,  4,  4, -1, -1 },   /* punchy doubles */
-    { 0,  0,  0,  2,  4, -1,  2,  2,  0,  0,  4,  2,  0, -1, -1, -1 },   /* busy intro     */
-    { -1, -1, -1, 4,  2, -1, -1,  0, -1, -1,  4,  2, -1, -1,  0, -1 },   /* offbeat answer */
-    { 2,  4, -1,  0,  0, -1,  4,  2, -1,  0,  2, -1,  4, -1, -1,  0 },   /* cascading      */
-    { 0, -1, -1,  0, -1, -1,  4, -1,  0, -1, -1,  2, -1, -1,  4, -1 },   /* jungle-ish     */
-    { 4,  2,  4,  2,  0, -1,  2,  4,  0,  2,  4,  2,  0, -1,  4, -1 }    /* dense rolling  */
+    "daft style over I-III-IV-V (reference)",
+    "rolling bass + dance drums + fresh-per-bar phrase + 16th fills"
 };
 
 static int current_variation = 0;
@@ -217,58 +160,21 @@ static void place_bass(bar_t *bar, int step, int8_t chord_root, int8_t semi) {
     bar->bass[step] = (int8_t)(BASS_BASE_MIDI + chord_root + semi);
 }
 
-static void gen_chord_half_roots(bar_t *bar, int half, int8_t chord_root) {
-    int base = half * STEPS_PER_CHORD;
-    int mid  = base + STEPS_PER_CHORD / 2;
-
-    place_bass(bar, base, chord_root, 0);
-    if (rng_range(0, 1)) {
-        place_bass(bar, mid, chord_root, 7);     /* optional fifth */
-    }
-    bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
-}
-
-/* Pick a pentatonic-safe walking offset above the chord root — works
- * regardless of chord quality (see the commit that introduced this). */
-static int8_t pick_pent_walk_offset(int8_t chord_root) {
-    static const int8_t PENT_SEMIS[] = { 0, 2, 4, 7, 9, 12, 14, 16, 19, 21 };
-    int8_t root_mod = (int8_t)(chord_root % 12);
-    int8_t offs[6];
-    int n = 0, i;
-    for (i = 0; i < (int)(sizeof(PENT_SEMIS) / sizeof(PENT_SEMIS[0])); i++) {
-        int8_t d = (int8_t)(PENT_SEMIS[i] - root_mod);
-        if (d > 0 && d <= 12 && n < 6) offs[n++] = d;
-    }
-    if (n == 0) return 7;
-    return offs[rng_range(0, n - 1)];
-}
-
-static void gen_chord_half_walking(bar_t *bar, int half, int8_t chord_root) {
-    int base = half * STEPS_PER_CHORD;
-    int mid  = base + STEPS_PER_CHORD / 2;
-    int8_t walk = pick_pent_walk_offset(chord_root);
-
-    place_bass(bar, base, chord_root, 0);
-    place_bass(bar, mid,  chord_root, walk);
-    bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
-}
-
-/* Rolling 16th-note bass: hit the chord root every 4 steps, with an
- * occasional octave bump for movement. That's 8 hits per half-bar,
- * 16 per bar — the rolling sub-bass figure of late-90s DnB / big beat. */
+/* Rolling 16th-note bass: chord root every 4 steps, 10% chance of an
+ * octave bump for movement. 16 hits per bar — the late-90s sub-bass
+ * figure. */
 static void gen_chord_half_rolling(bar_t *bar, int half, int8_t chord_root) {
     int base = half * STEPS_PER_CHORD;
     int i;
     for (i = 0; i < STEPS_PER_CHORD; i += 4) {
-        int8_t oct = (rng_range(0, 9) == 0) ? 12 : 0;   /* 10% octave up */
+        int8_t oct = (rng_range(0, 9) == 0) ? 12 : 0;
         place_bass(bar, base + i, chord_root, oct);
     }
     bar->chord_root_midi[half] = (uint8_t)(BASS_BASE_MIDI + chord_root);
 }
 
-/* Pumping bass: root on down-beat, octave up on the "and". 4 hits
- * per half-bar on 8ths — root, +12, root, +12. That's the funky
- * Daft Punk / French-house bassline shape. */
+/* Pumping bass: root on the beat, octave up on the "and" — funky
+ * french-house bassline shape, 8 hits per bar. */
 static void gen_chord_half_pump(bar_t *bar, int half, int8_t chord_root) {
     int base = half * STEPS_PER_CHORD;
     int i;
@@ -291,34 +197,8 @@ static void apply_melody_phrase(bar_t *bar, int phrase_idx, int oct) {
     }
 }
 
-/* Place a minimal-bank phrase. Fixed octave (no RNG) so the loop
- * stays locked; that's what minimal techno is supposed to feel like. */
-static void apply_melody_minimal(bar_t *bar, int phrase_idx) {
-    const int8_t *p = MINIMAL_BANK[phrase_idx];
-    int s;
-    for (s = 0; s < MINIMAL_LEN; s++) {
-        int8_t d = p[s];
-        if (d < 0) continue;
-        if (d >= SCALE_LEN) d = (int8_t)(SCALE_LEN - 1);
-        bar->melody[s * 8] = (int8_t)(MELODY_BASE_MIDI + KEY_ROOT + SCALE_MAJ_PENT[d]);
-    }
-}
-
-/* Place a 16th-note stab: 16 slots, step = s*4. */
-static void apply_melody_stab(bar_t *bar, int stab_idx) {
-    int oct = (rng_range(0, 9) < 2) ? 12 : 0;
-    const int8_t *p = STAB_BANK[stab_idx];
-    int s;
-    for (s = 0; s < STAB_LEN; s++) {
-        int8_t d = p[s];
-        if (d < 0) continue;
-        if (d >= SCALE_LEN) d = (int8_t)(SCALE_LEN - 1);
-        bar->melody[s * 4] = (int8_t)(MELODY_BASE_MIDI + KEY_ROOT + SCALE_MAJ_PENT[d] + oct);
-    }
-}
-
-/* Harmony = melody doubled one octave up. Simplest thickening trick;
- * works for any phrase that already fits in the scale. */
+/* Harmony = melody doubled one octave up. Thickens the line without
+ * any chord-quality analysis. */
 static void gen_lead2_harmony(bar_t *bar) {
     int s;
     for (s = 0; s < STEPS_PER_BAR; s++) {
@@ -328,9 +208,9 @@ static void gen_lead2_harmony(bar_t *bar) {
     }
 }
 
-/* Fills = random pentatonic note on the 16th *between* each main
- * phrase note (steps 4, 12, 20, ...). 50% chance per gap; an octave
- * bump now and then. */
+/* Fills = random pentatonic note on the 16th *between* each main phrase
+ * note (steps 4, 12, 20, ...). 50% chance per gap; an octave bump now
+ * and then. */
 static void gen_lead2_fills(bar_t *bar) {
     int s;
     for (s = 0; s < PHRASE_LEN; s++) {
@@ -347,24 +227,9 @@ static void gen_lead2_fills(bar_t *bar) {
     }
 }
 
-static void apply_drums_rock(bar_t *bar) {
-    int s;
-    /* Classic rock beat: kick on 1 & 3, snare on 2 & 4, hats on 8ths,
-     * sprinkled ghost kicks. */
-    bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
-    bar->drums[32] = (uint8_t)(bar->drums[32] | DRUM_KICK);
-    bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_SNARE);
-    bar->drums[48] = (uint8_t)(bar->drums[48] | DRUM_SNARE);
-    for (s = 0; s < STEPS_PER_BAR; s += 8) {
-        bar->drums[s] = (uint8_t)(bar->drums[s] | DRUM_HAT);
-    }
-    if (rng_range(0, 9) < 3) bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_KICK);
-    if (rng_range(0, 9) < 3) bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_KICK);
-}
-
+/* Dance drums: 4-on-the-floor kick, clap/snare on 2 & 4, open hats on
+ * every "and" (off-beat 8ths) + occasional 16th ghosts. */
 static void apply_drums_dance(bar_t *bar) {
-    /* 4-on-the-floor kick, clap/snare on 2 & 4, open hats on every
-     * "and" (off-beat 8ths) — the classic house / big-beat shape. */
     bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
     bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_KICK | DRUM_SNARE);
     bar->drums[32] = (uint8_t)(bar->drums[32] | DRUM_KICK);
@@ -373,54 +238,13 @@ static void apply_drums_dance(bar_t *bar) {
     bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_HAT);
     bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_HAT);
     bar->drums[56] = (uint8_t)(bar->drums[56] | DRUM_HAT);
-    /* Occasional ghost hat on a 16th for some hyperactivity */
     if (rng_range(0, 9) < 3) bar->drums[4]  = (uint8_t)(bar->drums[4]  | DRUM_HAT);
     if (rng_range(0, 9) < 3) bar->drums[36] = (uint8_t)(bar->drums[36] | DRUM_HAT);
 }
 
-static void apply_drums_techno(bar_t *bar) {
-    /* Minimal techno: 4-on-the-floor kick, off-beat hats only, no
-     * snare/clap. Space is the signature. */
-    bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
-    bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_KICK);
-    bar->drums[32] = (uint8_t)(bar->drums[32] | DRUM_KICK);
-    bar->drums[48] = (uint8_t)(bar->drums[48] | DRUM_KICK);
-    bar->drums[8]  = (uint8_t)(bar->drums[8]  | DRUM_HAT);
-    bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_HAT);
-    bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_HAT);
-    bar->drums[56] = (uint8_t)(bar->drums[56] | DRUM_HAT);
-}
-
-static void apply_drums_break(bar_t *bar) {
-    /* Breakbeat: syncopated kicks (not on every beat), snare on 2 & 4
-     * with an occasional "ghost" snare on the "and" of 4, hats on
-     * 8ths plus random 16th ghosts. Busier, shuffled feel. */
-    bar->drums[0]  = (uint8_t)(bar->drums[0]  | DRUM_KICK);
-    bar->drums[24] = (uint8_t)(bar->drums[24] | DRUM_KICK);
-    bar->drums[40] = (uint8_t)(bar->drums[40] | DRUM_KICK);
-
-    bar->drums[16] = (uint8_t)(bar->drums[16] | DRUM_SNARE);
-    bar->drums[48] = (uint8_t)(bar->drums[48] | DRUM_SNARE);
-    if (rng_range(0, 9) < 4) {
-        bar->drums[56] = (uint8_t)(bar->drums[56] | DRUM_SNARE);   /* ghost */
-    }
-
-    {
-        int s;
-        for (s = 0; s < STEPS_PER_BAR; s += 8) {
-            bar->drums[s] = (uint8_t)(bar->drums[s] | DRUM_HAT);
-        }
-    }
-    /* 16th ghost hats — coin-flip per position */
-    if (rng_range(0, 1)) bar->drums[4]  = (uint8_t)(bar->drums[4]  | DRUM_HAT);
-    if (rng_range(0, 1)) bar->drums[20] = (uint8_t)(bar->drums[20] | DRUM_HAT);
-    if (rng_range(0, 1)) bar->drums[36] = (uint8_t)(bar->drums[36] | DRUM_HAT);
-    if (rng_range(0, 1)) bar->drums[52] = (uint8_t)(bar->drums[52] | DRUM_HAT);
-}
-
 /* gen_bar_skeleton fills bass + drums for one bar. Melody and lead2
  * are applied separately by music_generate so the melody mode can
- * decide how to pick phrases (fresh per bar, locked loop, etc.). */
+ * decide how to pick phrases (fresh per bar, locked hook). */
 static void gen_bar_skeleton(bar_t *bar, const variation_t *v, int bar_idx) {
     int s;
     int8_t chord_a = v->progression[bar_idx * CHORDS_PER_BAR + 0];
@@ -434,63 +258,39 @@ static void gen_bar_skeleton(bar_t *bar, const variation_t *v, int bar_idx) {
     }
 
     switch (v->bass_mode) {
-    case BASS_WALKING:
-        gen_chord_half_walking(bar, 0, chord_a);
-        gen_chord_half_walking(bar, 1, chord_b);
-        break;
     case BASS_ROLLING:
         gen_chord_half_rolling(bar, 0, chord_a);
         gen_chord_half_rolling(bar, 1, chord_b);
         break;
     case BASS_PUMP:
+    default:
         gen_chord_half_pump(bar, 0, chord_a);
         gen_chord_half_pump(bar, 1, chord_b);
         break;
-    case BASS_ROOTS:
-    default:
-        gen_chord_half_roots(bar, 0, chord_a);
-        gen_chord_half_roots(bar, 1, chord_b);
-        break;
     }
 
-    switch (v->drum_pattern) {
-    case DRUMS_DANCE:  apply_drums_dance(bar);  break;
-    case DRUMS_TECHNO: apply_drums_techno(bar); break;
-    case DRUMS_BREAK:  apply_drums_break(bar);  break;
-    case DRUMS_ROCK:
-    default:           apply_drums_rock(bar);   break;
-    }
+    apply_drums_dance(bar);
 }
 
 static void apply_lead2(bar_t *bar, lead2_mode_t mode) {
     switch (mode) {
-    case LEAD2_HARMONY: gen_lead2_harmony(bar); break;
     case LEAD2_FILLS:   gen_lead2_fills(bar);   break;
-    case LEAD2_NONE:
-    default:            break;
+    case LEAD2_HARMONY:
+    default:            gen_lead2_harmony(bar); break;
     }
 }
 
 void music_generate(bar_t *bars, int num_bars) {
     const variation_t *v = &VARIATIONS[current_variation];
-    int locked_idx_a = 0;   /* for MINIMAL_LOOP — "A" phrase */
-    int locked_idx_b = 0;   /* for MINIMAL_LOOP — "B" phrase */
-    /* For HOOK_2BAR we now pick a pair AND an octave independently
-     * per pair-slot — 6 pair-slots × 2 picks = 12 RNG draws. That
-     * turns the seed into a composition knob instead of a single
-     * choice out of 14. */
+    /* For HOOK_2BAR: 6 pair-slots × 2 picks (pair + octave) per slot =
+     * 12 RNG draws, turning the seed into a composition knob rather
+     * than a one-off choice out of 14 pairs. */
     int hook_pair[6] = {0, 0, 0, 0, 0, 0};
     int hook_oct[6]  = {0, 0, 0, 0, 0, 0};
     int b;
     if (num_bars > BARS) num_bars = BARS;
 
-    /* Pre-pick all RNG for melody modes that need it. Done up front
-     * so the RNG consumption is a known shape regardless of melody
-     * mode, keeping bass/drum RNG comparable across switches. */
-    if (v->melody_mode == MEL_MINIMAL_LOOP) {
-        locked_idx_a = rng_range(0, MINIMAL_COUNT - 1);
-        locked_idx_b = rng_range(0, MINIMAL_COUNT - 1);
-    } else if (v->melody_mode == MEL_HOOK_2BAR) {
+    if (v->melody_mode == MEL_HOOK_2BAR) {
         int i;
         for (i = 0; i < 6; i++) {
             hook_pair[i] = rng_range(0, PHRASE_PAIR_COUNT - 1);
@@ -502,22 +302,7 @@ void music_generate(bar_t *bars, int num_bars) {
         gen_bar_skeleton(&bars[b], v, b);
 
         switch (v->melody_mode) {
-        case MEL_MINIMAL_LOOP: {
-            /* AABB pattern across the 12 bars: each phrase plays for
-             * 2 bars before the other takes over. Still minimal, but
-             * not a literal 12× repeat of the same thing. */
-            int idx = (((b / 2) & 1) == 0) ? locked_idx_a : locked_idx_b;
-            apply_melody_minimal(&bars[b], idx);
-            break;
-        }
-        case MEL_STAB_16TH:
-            apply_melody_stab(&bars[b], rng_range(0, STAB_COUNT - 1));
-            break;
         case MEL_HOOK_2BAR: {
-            /* Each pair-slot gets its own pair + its own octave shift
-             * — the 12-bar hook becomes a *composition* of six 2-bar
-             * statements, not a 3-idea cycle. Still "in the harmony
-             * and major" because phrases all come from A-pent bank. */
             int pair_slot = b / 2;
             int idx = PHRASE_PAIR_BANK[hook_pair[pair_slot]][b % 2];
             int oct = hook_oct[pair_slot];
