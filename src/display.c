@@ -64,7 +64,7 @@ void display_vga_printf(int row, int col, unsigned char attr,
     char buf[128];
     va_list ap;
     va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     display_vga_puts(row, col, attr, buf);
 }

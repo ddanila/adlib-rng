@@ -642,14 +642,14 @@ static int player_vgm_init(const char *arg) {
 
     if (parse_header(arg) != 0) {
         draw_status("error", ATTR_WARN);
-        return 0;
+        return 1;
     }
 
     if (fseek(g_f, g_data_start, SEEK_SET) != 0) {
         display_vga_puts(11, 0, ATTR_WARN, "error: cannot seek to data start");
         fclose(g_f); g_f = NULL;
         draw_status("error", ATTR_WARN);
-        return 0;
+        return 1;
     }
 
     opl_reset();

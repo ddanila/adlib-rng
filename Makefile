@@ -41,9 +41,18 @@ EXE     = build/adlib.exe
 FLOPPY_SRC      ?= vendor/msdos/floppy-minimal.img
 FLOPPY_OUT       = build/adlib.img
 
-.PHONY: all clean run floppy refresh-watcom
+.PHONY: all clean run floppy refresh-watcom help
 
 all: $(EXE)
+
+help:
+	@echo "adlib-rng targets:"
+	@echo "  all             build $(EXE) (default)"
+	@echo "  floppy          pack $(EXE) + VGMs onto $(FLOPPY_OUT)"
+	@echo "  run             build the floppy and boot it in QEMU"
+	@echo "  vgms            regenerate assets/*.vgm from sources/*.vgm"
+	@echo "  refresh-watcom  vendor a fresh Open Watcom v2 snapshot"
+	@echo "  clean           remove build/"
 
 # Download the latest Open Watcom v2 Current-build snapshot into a
 # dated vendor/openwatcom-v2/current-build-<date>/ directory. After
